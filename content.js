@@ -1,0 +1,145 @@
+// Gator Eyes extension: content script for solada.fun and snek.fun.
+// Shows a small, read-only flow panel on coin pages. It only reads the page
+// URL (never the page contents or your wallet) and asks the background
+// worker for the Gator Eyes numbers for that coin.
+(() => {
+  const HOST_ID = "gator-eyes-panel-host";
+  let current = null;     // last page key rendered
+  let timer = null;
+  let collapsed = false;
+
+  const n = (v, d = 0) => Number(v || 0).toLocaleString("en-US", { maximumFractionDigits: d });
+  const ada = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + "M" : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + "k" : n(v));
+  const pct = (p) => (p == null ? "–" : (p > 0 ? "+" : p < 0 ? "−" : "") + Math.abs(p).toFixed(1) + "%");
+  const ago = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1e3); return s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + "m" : s < 86400 ? Math.round(s / 3600) + "h" : Math.round(s / 86400) + "d"; };
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const KIND = { big: "Whale trade", spike: "Volume spike", dev: "Creator sell", launch: "Fast launch", watch: "Watch", gaey: "$GAEY" };
+
+  function pageOf(href) {
+    const u = new URL(href);
+    const h = u.hostname.replace(/^www\./, "");
+    if (h === "solada.fun") { const m = /^\/coin\/([^/?#]+)/.exec(u.pathname); return m ? { src: "solada", key: decodeURIComponent(m[1]) } : null; }
+    if (h === "snek.fun") { const m = /^\/token\/([^/?#]+)/.exec(u.pathname); return m ? { src: "snek", key: decodeURIComponent(m[1]) } : null; }
+    return null;
+  }
+
+  const CSS = `
+    :host { all: initial; }
+    .ge { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; width: 300px; max-width: calc(100vw - 32px);
+      font: 13px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #e6e6e0;
+      background: #0d0f0c; border: 1px solid #2a2e26; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.5); overflow: hidden; }
+    .hd { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #141712; border-bottom: 1px solid #2a2e26; cursor: pointer; user-select: none; }
+    .hd img { width: 22px; height: 22px; border-radius: 50%; object-fit: cover; background: #222; }
+    .hd b { font-size: 14px; }
+    .hd .src { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: #c9a227; border: 1px solid #4a3f14; border-radius: 999px; padding: 1px 7px; }
+    .hd .sp { flex: 1; }
+    .hd .tg { color: #9a9f93; font-size: 12px; }
+    .bd { padding: 10px 12px; }
+    .g { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+    .k { color: #9a9f93; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; }
+    .v { font: 600 15px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin-top: 2px; }
+    .up { color: #7ed48a; } .dn { color: #ee7b6d; } .mu { color: #9a9f93; }
+    .bar { height: 6px; border-radius: 3px; background: #ee7b6d; overflow: hidden; margin: 10px 0 4px; }
+    .bar i { display: block; height: 100%; background: #7ed48a; }
+    .sub { color: #9a9f93; font-size: 11.5px; }
+    .al { margin-top: 10px; border-top: 1px solid #2a2e26; padding-top: 8px; }
+    .al div { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }
+    .al .t { color: #9a9f93; }
+    .ft { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #2a2e26; background: #101310; font-size: 12px; }
+    a { color: #c9a227; text-decoration: none; font-weight: 600; } a:hover { text-decoration: underline; }
+    .note { padding: 12px; color: #9a9f93; }
+    .ge.min .bd, .ge.min .ft { display: none; }
+  `;
+
+  function ensureHost() {
+    let host = document.getElementById(HOST_ID);
+    if (host) return host;
+    host = document.createElement("div");
+    host.id = HOST_ID;
+    const sh = host.attachShadow({ mode: "open" });
+    const st = document.createElement("style"); st.textContent = CSS; sh.appendChild(st);
+    const box = document.createElement("div"); box.className = "ge"; sh.appendChild(box);
+    (document.body || document.documentElement).appendChild(host);
+    return host;
+  }
+
+  function render(html) {
+    const host = ensureHost();
+    const box = host.shadowRoot.querySelector(".ge");
+    box.className = "ge" + (collapsed ? " min" : "");
+    box.innerHTML = html;
+    const hd = box.querySelector(".hd");
+    if (hd) hd.addEventListener("click", (e) => {
+      if (e.target.closest("a")) return;
+      collapsed = !collapsed; box.classList.toggle("min", collapsed);
+      try { chrome.storage.local.set({ collapsed }); } catch {}
+      const tg = box.querySelector(".tg"); if (tg) tg.textContent = collapsed ? "▴" : "▾";
+    });
+  }
+
+  function header(coin, page) {
+    const img = coin && coin.img ? `<img src="${esc(coin.img)}" alt="">` : `<img src="${chrome.runtime.getURL("icons/icon32.png")}" alt="">`;
+    const tk = coin ? "$" + esc(coin.tk) : "Gator Eyes";
+    return `<div class="hd">${img}<b>${tk}</b><span class="src">${page.src === "snek" ? "Snek.fun" : "Solada"}</span><span class="sp"></span><span class="sub">Gator Eyes</span><span class="tg">${collapsed ? "▴" : "▾"}</span></div>`;
+  }
+
+  function view(res, page) {
+    const site = res.site || "https://gatoreyes.fun";
+    const coin = res.coin;
+    if (!coin) {
+      return header(null, page) + `<div class="note">Gator Eyes hasn't seen trades for this coin in the last 24 h, or it isn't in the tracked set yet. Coins show up here after their first tracked trade.</div>
+        <div class="ft"><a href="${site}/tokens.html" target="_blank" rel="noopener">Open gatoreyes.fun</a><span class="sub">read-only</span></div>`;
+    }
+    const w = coin.w || {}, d = w.h24 || { v: 0, n: 0, b: 0, s: 0, net: 0, wal: 0, ch: null }, h = w.h1;
+    const buyShare = d.v > 0 ? Math.round((d.b / d.v) * 100) : 50;
+    const netCls = d.net > 0 ? "up" : d.net < 0 ? "dn" : "mu";
+    const chCls = d.ch > 0 ? "up" : d.ch < 0 ? "dn" : "mu";
+    const q = encodeURIComponent(coin.tk || "");
+    const cid = encodeURIComponent(coin.id || "");
+    const alerts = (res.alerts || []).map((a) => `<div><span>${esc(KIND[a.kind] || a.kind)}${a.ada ? " · " + ada(a.ada) + " ADA" : ""}${a.side ? " " + (a.side === "buy" ? "buy" : "sell") : ""}</span><span class="t">${ago(a.at)} ago</span></div>`).join("");
+    return header(coin, page) + `
+      <div class="bd">
+        <div class="g">
+          <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div></div>
+          <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div></div>
+          <div><div class="k">Trades · wallets</div><div class="v">${n(d.n)} · ${n(d.wal)}</div></div>
+          <div><div class="k">Price 24h</div><div class="v ${chCls}">${pct(d.ch)}</div></div>
+        </div>
+        <div class="bar" title="buys vs sells, 24h"><i style="width:${buyShare}%"></i></div>
+        <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${h ? ` · last hour ${ada(h.v)} ADA (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA` : ""}</div>
+        ${alerts ? `<div class="al"><div class="k">Alerts, last 24h</div>${alerts}</div>` : ""}
+      </div>
+      <div class="ft">
+        <span><a href="${site}/coincard.html?coin=${cid}" target="_blank" rel="noopener">Coin card</a> · <a href="${site}/holders.html?coin=${cid}" target="_blank" rel="noopener">Holders</a> · <a href="${site}/tokens.html?q=${q}" target="_blank" rel="noopener">Tokens</a></span>
+        <span class="sub" title="${esc(res.updatedAt || "")}">${res.updatedAt ? ago(Date.parse(res.updatedAt)) + " ago" : ""}</span>
+      </div>`;
+  }
+
+  function refresh(page) {
+    chrome.runtime.sendMessage({ type: "coin", page }, (res) => {
+      if (chrome.runtime.lastError || !res || !res.ok) {
+        render(header(null, page) + `<div class="note">Couldn't reach the Gator Eyes feed right now.</div>`);
+        return;
+      }
+      render(view(res, page));
+    });
+  }
+
+  function tick() {
+    const page = pageOf(location.href);
+    const key = page ? page.src + ":" + page.key : null;
+    if (key !== current) {
+      current = key;
+      clearInterval(timer); timer = null;
+      const host = document.getElementById(HOST_ID);
+      if (!page) { if (host) host.remove(); return; }
+      refresh(page);
+      timer = setInterval(() => refresh(page), 60e3);
+    }
+  }
+
+  try { chrome.storage.local.get("collapsed", (v) => { collapsed = !!(v && v.collapsed); tick(); }); } catch { tick(); }
+  // Both sites are single-page apps: watch for in-app navigation.
+  setInterval(tick, 1000);
+  window.addEventListener("popstate", tick);
+})();
