@@ -1,4 +1,4 @@
-# Gator Eyes browser extension (private, not released)
+# Gator Eyes browser extension
 
 Free, read-only Gator Eyes panel on **Solada.fun** and **Snek.fun** coin pages. Manifest V3, no build step, no dependencies.
 
@@ -19,10 +19,11 @@ Install (unpacked, Chrome / Brave / Edge)
 
 Firefox: `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → pick `manifest.json` (works until Firefox restarts; a signed build is needed for permanent install).
 
-Before any public release
-- Nick's rule: tell Sousa before shipping anything that sits on top of Solada's pages.
+Chrome Web Store release
+- Upload `gator-eyes-extension-<version>.zip` (built by `./build.sh`, contains only the extension files).
+- Listing text, permission answers and image assets are in `store/` (see `store/LISTING.md`).
+- Privacy policy: https://www.gatoreyes.fun/privacy.html
 - The worker's `/tokens` and `/feed` are rate limited (60/min per IP, shared with the site). The extension caches 60s, so one user is 2 requests a minute at most.
-- Chrome Web Store would need: a privacy policy URL (gatoreyes.fun/about is fine), 128px icon (included), screenshots, and the $5 developer fee.
 
 Files
 - `manifest.json` MV3 manifest. Content script on solada.fun + snek.fun; host permission only for the Gator Eyes worker.
