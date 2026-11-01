@@ -6,7 +6,7 @@ Copy each block into the matching field in the Chrome Web Store developer dashbo
 
 **Name** (from manifest): Gator Eyes for Solada & Snek.fun
 
-**Summary** (from manifest, max 132 chars): Free, read-only Gator Eyes flow panel on Solada.fun and Snek.fun coin pages: 24h volume, net flow, buys vs sells, wallets and recent alerts.
+**Summary** (from manifest, max 132 chars): Free, read-only flow panel on Solada.fun and Snek.fun coin pages: 24h volume, net flow, buys vs sells, wallets and alerts.
 
 **Description:**
 
