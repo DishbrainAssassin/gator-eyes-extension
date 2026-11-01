@@ -1,10 +1,10 @@
-# Chrome Web Store listing: Gator Eyes for Solada & Snek.fun
+# Chrome Web Store listing: Gator Eyes for Cardano
 
 Copy each block into the matching field in the Chrome Web Store developer dashboard.
 
 ## Store listing tab
 
-**Name** (from manifest): Gator Eyes for Solada & Snek.fun
+**Name** (from manifest): Gator Eyes for Cardano
 
 **Summary** (from manifest, max 132 chars): Free, read-only flow panel on Solada.fun and Snek.fun coin pages: 24h volume, net flow, buys vs sells, wallets and alerts.
 

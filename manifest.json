@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
-  "name": "Gator Eyes for Solada & Snek.fun",
-  "version": "1.0.0",
+  "name": "Gator Eyes for Cardano",
+  "version": "1.0.1",
   "description": "Free, read-only flow panel on Solada.fun and Snek.fun coin pages: 24h volume, net flow, buys vs sells, wallets and alerts.",
   "icons": {
     "16": "icons/icon16.png",
