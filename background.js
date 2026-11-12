@@ -62,7 +62,64 @@ async function topMovers() {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}) : msg && msg.type === "top" ? topMovers() : Promise.resolve({ ok: false, error: "unknown message" });
+  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : Promise.resolve({ ok: false, error: "unknown message" });
   job.then(sendResponse, (e) => sendResponse({ ok: false, error: String(e && e.message || e) }));
   return true; // async response
 });
+
+// ---- Gator Run Downs: toolbar badge and optional new-race alerts ------------------------------------------------
+// Reads only the public /api/now list (cached 15 s by the Run Downs worker, no sign-in). The badge shows how many
+// races are open for picks. Alerts are off until the player turns them on in the Run Downs tab.
+const RD = "https://gatorrundowns.fun";
+const ALARM = "rd-now";
+
+function ensureAlarm() {
+  chrome.alarms.get(ALARM, (a) => { if (!a) chrome.alarms.create(ALARM, { periodInMinutes: 0.5, delayInMinutes: 0.1 }); });
+}
+chrome.runtime.onInstalled.addListener(() => { ensureAlarm(); checkRaces(); });
+chrome.runtime.onStartup.addListener(() => { ensureAlarm(); checkRaces(); });
+ensureAlarm();
+
+async function checkRaces() {
+  let d;
+  try {
+    const r = await fetch(RD + "/api/now", { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    d = await r.json();
+  } catch { return; }
+  const now = Date.now();
+  const open = (d.open || []).filter((x) => !x.called && Number(x.closesAt) > now);
+  try {
+    await chrome.action.setBadgeBackgroundColor({ color: "#2f7d3a" });
+    await chrome.action.setBadgeText({ text: open.length ? String(open.length) : "" });
+    await chrome.action.setTitle({ title: open.length ? `Gator Eyes · ${open.length} Run Downs race${open.length === 1 ? "" : "s"} open for picks` : "Gator Eyes" });
+  } catch {}
+  const st = await chrome.storage.local.get(["rdAlerts", "rdSeen"]);
+  const seen = new Set(st.rdSeen || []);
+  const fresh = open.filter((x) => !seen.has(x.coinId));
+  for (const x of open) seen.add(x.coinId);
+  await chrome.storage.local.set({ rdSeen: [...seen].slice(-200) });
+  if (!st.rdAlerts || !fresh.length || !chrome.notifications) return;
+  for (const x of fresh.slice(0, 3)) {
+    const left = Math.max(0, Math.round((Number(x.closesAt) - now) / 6e4));
+    chrome.notifications.create("rd:" + x.coinId, {
+      type: "basic", iconUrl: "icons/icon128.png", title: `New race: $${x.ticker || x.name || "coin"}`,
+      message: `Picks open at Gator Run Downs · about ${left} min to pick. Click the Gator Eyes icon to pick.`, priority: 1,
+    });
+  }
+}
+chrome.alarms.onAlarm.addListener((a) => { if (a.name === ALARM) checkRaces(); });
+// notifications is an optional permission: wire the click handler now if it is granted, or as soon as it is.
+let clicksWired = false;
+function wireClicks() {
+  if (clicksWired || !chrome.notifications || !chrome.notifications.onClicked) return;
+  clicksWired = true;
+  chrome.notifications.onClicked.addListener((id) => {
+    if (!id.startsWith("rd:")) return;
+    chrome.notifications.clear(id);
+    const tab = () => chrome.tabs.create({ url: RD + "/paddock.html" });
+    if (chrome.action.openPopup) chrome.action.openPopup().catch(tab); else tab();
+  });
+}
+wireClicks();
+if (chrome.permissions && chrome.permissions.onAdded) chrome.permissions.onAdded.addListener(wireClicks);

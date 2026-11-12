@@ -6,7 +6,7 @@ Copy each block into the matching field in the Chrome Web Store developer dashbo
 
 **Name** (from manifest): Gator Eyes for Cardano
 
-**Summary** (from manifest, max 132 chars): Free, read-only flow panel on Solada.fun and Snek.fun coin pages: 24h volume, net flow, buys vs sells, wallets and alerts.
+**Summary** (from manifest, max 132 chars): Free Gator Eyes flow panel on Solada.fun and Snek.fun coin pages, plus a Gator Run Downs tab to make free Sprint picks.
 
 **Description:**
 
@@ -22,10 +22,16 @@ Gator Eyes is a free, automated tracker for Cardano launchpads. This extension a
 
 Click the toolbar icon to see the 8 most traded coins across both launchpads in the last 24 hours.
 
-Read-only and private:
-• No wallet connection, no sign-up, no trading
-• Never reads page contents, what you type, cookies or wallets. It only checks which coin page you're on
-• Nothing about you is sent anywhere
+Gator Run Downs tab:
+• Every open Gator Run Downs race with its pick countdown, buyers and net ADA against the Fast Lunge target, and Quagmire's call
+• Make your free Lunge / No Lunge pick right from the toolbar. Free to play, no token gate
+• The icon badge shows how many races are open; turn on optional alerts to hear about new ones
+• Sign in once at gatorrundowns.fun; the tab uses that sign-in. Same account, same fair-play rules as the site
+
+Private:
+• No wallet connection and no trading
+• Never reads page contents, what you type, cookies or wallets. On coin pages it only checks which coin page you're on
+• The market panel sends nothing about you. The Run Downs tab sends only the picks you make, to gatorrundowns.fun
 
 Free forever. Gator Eyes will never charge for access.
 
@@ -35,7 +41,7 @@ Not financial advice. Gator Eyes is independent and not affiliated with Solada.f
 **Category:** Tools
 **Language:** English
 **Store icon:** `icons/icon128.png`
-**Screenshots (1280x800):** `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`
+**Screenshots (1280x800):** `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`, `shot-4-run-downs.png`
 **Small promo tile (440x280):** `promo-440x280.png`
 **Official URL / Homepage:** https://www.gatoreyes.fun/
 **Support URL:** the Gator Eyes Discord invite
@@ -45,13 +51,31 @@ Not financial advice. Gator Eyes is independent and not affiliated with Solada.f
 **Single purpose:**
 
 ```
-Shows a read-only panel of public Gator Eyes market data (volume, net flow, trades and alerts) on Solada.fun and Snek.fun coin pages, plus a toolbar list of the most traded coins.
+Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volume, net flow, trades and alerts) on Solada.fun and Snek.fun coin pages and in the toolbar, including the Gator Eyes forecasting game, Gator Run Downs, where players see open races and make free picks.
 ```
 
 **Permission justification, storage:**
 
 ```
 Remembers whether the user collapsed the panel, and keeps a copy of the public Gator Eyes data for 60 seconds so it isn't downloaded again on every page.
+```
+
+**Permission justification, alarms:**
+
+```
+Checks Gator Run Downs' public list of open races about twice a minute so the toolbar badge shows how many races are open for picks, and so optional new-race alerts can fire.
+```
+
+**Permission justification, notifications (optional, requested only when the user turns on alerts):**
+
+```
+Shows a desktop notification when a new Gator Run Downs race opens, only after the user ticks "Alert me when a race opens" in the Run Downs tab. Off by default.
+```
+
+**Permission justification, host permission (gatorrundowns.fun):**
+
+```
+The Run Downs tab reads open races, the signed-in player's username, points and picks from gatorrundowns.fun, and sends the Lunge / No Lunge pick the player clicks. These are the same API calls the gatorrundowns.fun website makes. The extension does not read or store the sign-in cookie; the browser attaches it.
 ```
 
 **Permission justification, host permission (gator-eyes.nlunn6731.workers.dev):**
@@ -68,7 +92,7 @@ Needed to draw the panel on Solada.fun and Snek.fun coin pages. The script only 
 
 **Remote code:** No, I am not using remote code.
 
-**Data usage:** leave every data-type box unchecked (the extension collects nothing). Tick all three certifications:
+**Data usage:** tick **Authentication information** (the browser sends the player's existing Gator Run Downs sign-in with Run Downs requests) and **User activity** (the picks the player clicks are sent to gatorrundowns.fun). Leave every other box unchecked. Tick all three certifications:
 - I do not sell or transfer user data to third parties, outside of the approved use cases
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose
 - I do not use or transfer user data to determine creditworthiness or for lending purposes

@@ -1,10 +1,15 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Gator Eyes</title>
 <style>
-  body { margin: 0; width: 320px; background: #0d0f0c; color: #e6e6e0; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  body { margin: 0; width: 340px; background: #0d0f0c; color: #e6e6e0; font: 13px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
   .hd { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #141712; border-bottom: 1px solid #2a2e26; }
   .hd img { width: 22px; height: 22px; border-radius: 50%; }
   .hd b { font-size: 14px; } .hd .sp { flex: 1; }
+  .tabs { display: flex; background: #101310; border-bottom: 1px solid #2a2e26; }
+  .tab { flex: 1; padding: 8px 6px; background: none; border: 0; border-bottom: 2px solid transparent; color: #9a9f93; font-family: inherit; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+  .tab[aria-selected="true"] { color: #e6e6e0; border-bottom-color: #c9a227; }
+  .tab .ct { display: inline-block; min-width: 16px; margin-left: 4px; padding: 0 4px; border-radius: 8px; background: #2f7d3a; color: #fff; font-size: 11px; }
+  .tab .ct:empty { display: none; }
   .k { color: #9a9f93; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; padding: 10px 12px 4px; }
   table { width: 100%; border-collapse: collapse; }
   td { padding: 5px 12px; border-top: 1px solid #1d201b; white-space: nowrap; }
@@ -12,13 +17,61 @@
   .src { font-size: 10px; color: #c9a227; margin-left: 4px; }
   .up { color: #7ed48a; } .dn { color: #ee7b6d; } .mu { color: #9a9f93; }
   a { color: #c9a227; text-decoration: none; font-weight: 600; } a:hover { text-decoration: underline; }
-  .ft { display: flex; justify-content: space-between; padding: 8px 12px; border-top: 1px solid #2a2e26; background: #101310; font-size: 12px; color: #9a9f93; }
+  .ft { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #2a2e26; background: #101310; font-size: 12px; color: #9a9f93; }
   .note { padding: 12px; color: #9a9f93; }
+  .note b { color: #e6e6e0; }
+  [hidden] { display: none !important; }
+  /* Run Downs */
+  .who { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 12px; font-size: 12px; color: #9a9f93; border-bottom: 1px solid #1d201b; }
+  .who b { color: #e6e6e0; } .who .sp { flex: 1; }
+  .races { max-height: 380px; overflow-y: auto; }
+  .race { padding: 10px 12px; border-bottom: 1px solid #1d201b; }
+  .race.shut { opacity: .7; }
+  .rh { display: flex; align-items: center; gap: 8px; }
+  .rh img, .rh .ri { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; background: #1d201b; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; }
+  .rh b { font-size: 14px; } .rh .sp { flex: 1; }
+  .cd { font: 700 13px ui-monospace, Menlo, Consolas, monospace; color: #c9a227; }
+  .race.shut .cd { color: #9a9f93; font-size: 11px; }
+  .rt { margin-top: 4px; font-size: 12px; color: #c8ccc0; }
+  .rq { margin-top: 2px; font-size: 12px; color: #9a9f93; } .rq b { color: #e6e6e0; }
+  .rb { display: flex; gap: 6px; margin-top: 8px; }
+  .pk { flex: 1; padding: 7px 6px; border-radius: 8px; border: 1px solid #2a2e26; background: #161a14; color: #e6e6e0; font-family: inherit; font-weight: 700; font-size: 13px; cursor: pointer; }
+  .pk.yes:hover:not(:disabled) { border-color: #7ed48a; } .pk.no:hover:not(:disabled) { border-color: #ee7b6d; }
+  .pk.yes[aria-pressed="true"] { background: #2f7d3a; border-color: #7ed48a; color: #fff; }
+  .pk.no[aria-pressed="true"] { background: #8a3a30; border-color: #ee7b6d; color: #fff; }
+  .pk:disabled { cursor: default; opacity: .55; }
+  .pk[aria-pressed="true"]:disabled { opacity: .85; }
+  .rs { margin-top: 5px; font-size: 11.5px; color: #9a9f93; }
+  .rs.err { color: #ee7b6d; } .rs.ok { color: #7ed48a; }
+  .rp { font-size: 11px; color: #c9a227; }
+  .btn { display: inline-block; padding: 6px 10px; border-radius: 8px; background: #c9a227; color: #0d0f0c; font-weight: 700; }
+  .btn:hover { text-decoration: none; filter: brightness(1.08); }
+  label.al { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .fine { padding: 0 12px 10px; font-size: 11px; color: #7c8176; }
 </style></head>
 <body>
-  <div class="hd"><img src="icons/icon32.png" alt=""><b>Gator Eyes</b><span class="sp"></span><span class="mu">free · read-only</span></div>
-  <div class="k">Most traded, last 24h</div>
-  <div id="list"><div class="note">Loading…</div></div>
-  <div class="ft"><a href="https://gatoreyes.fun/" target="_blank" rel="noopener">gatoreyes.fun</a><span id="upd"></span></div>
+  <div class="hd"><img src="icons/icon32.png" alt=""><b>Gator Eyes</b><span class="sp"></span><span class="mu" id="tag">free · read-only</span></div>
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" id="t-movers" aria-selected="true" aria-controls="p-movers">Movers</button>
+    <button class="tab" role="tab" id="t-rd" aria-selected="false" aria-controls="p-rd">Run Downs<span class="ct" id="rdct"></span></button>
+  </div>
+
+  <section id="p-movers" role="tabpanel" aria-labelledby="t-movers">
+    <div class="k">Most traded, last 24h</div>
+    <div id="list"><div class="note">Loading…</div></div>
+    <div class="ft"><a href="https://gatoreyes.fun/" target="_blank" rel="noopener">gatoreyes.fun</a><span id="upd"></span></div>
+  </section>
+
+  <section id="p-rd" role="tabpanel" aria-labelledby="t-rd" hidden>
+    <div class="who" id="who">Checking your Run Downs sign-in…</div>
+    <div class="races" id="races"><div class="note">Loading races…</div></div>
+    <div class="ft">
+      <label class="al"><input type="checkbox" id="alerts"> Alert me when a race opens</label>
+      <a href="https://gatorrundowns.fun/paddock.html" target="_blank" rel="noopener">Paddock</a>
+    </div>
+    <div class="fine">Free to play, no token gate. Picks go to gatorrundowns.fun under your account, with the same fair-play rules as the site.</div>
+  </section>
+
+  <script src="rundowns.js"></script>
   <script src="popup.js"></script>
 </body></html>
