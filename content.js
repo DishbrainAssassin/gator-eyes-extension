@@ -23,6 +23,8 @@
     ["ask", "Ask Quagmire"],
   ];
   const on = (k) => !hide.includes(k);
+  let watch = [];         // starred coins [{ id, tk }], shared with the ribbon and the popup
+  let ribOn = true;       // trade ribbon showing: lift the panel above it
   let askTk = "";         // ticker of the coin on screen, for the quick questions
   let askEl = null;       // the Ask Quagmire section; kept across the 60 s refreshes so answers and typing survive
   let askPrev = "";       // last question asked, sent as context for follow-ups
@@ -103,6 +105,9 @@
     .race .sp { flex: 1; }
     .race a { background: #c9a227; color: #0d0f0c; border-radius: 6px; padding: 4px 9px; }
     .race a:hover { text-decoration: none; filter: brightness(1.08); }
+    .ge.rib { bottom: 46px; max-height: calc(100vh - 62px); }
+    .hd .star { background: none; border: 0; padding: 0 2px; font: 17px/1 inherit; color: #9a9f93; cursor: pointer; }
+    .hd .star:hover { color: #c9a227; } .hd .star.on { color: #c9a227; }
     .ge.min .bd, .ge.min .ft, .ge.min .ask, .ge.min .cz { display: none; }
     .ask { border-top: 1px solid #2a2e26; }
     .ask .tgl { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 12px; background: none; border: 0; color: #c9a227;
@@ -143,7 +148,7 @@
   function render(html) {
     const host = ensureHost();
     const box = host.shadowRoot.querySelector(".ge");
-    box.className = "ge" + (collapsed ? " min" : "") + (on("ask") ? "" : " noask");
+    box.className = "ge" + (collapsed ? " min" : "") + (on("ask") ? "" : " noask") + (ribOn ? " rib" : "");
     const main = box.querySelector(".main");
     main.innerHTML = html;
     const cfg = main.querySelector(".cfg");
@@ -163,6 +168,8 @@
     const hd = main.querySelector(".hd");
     if (hd) hd.addEventListener("click", (e) => {
       if (e.target.closest("a")) return;
+      const st = e.target.closest(".star");
+      if (st) { toggleStar(st); return; }
       collapsed = !collapsed; box.classList.toggle("min", collapsed);
       try { chrome.storage.local.set({ collapsed }); } catch {}
       const tg = box.querySelector(".tg"); if (tg) tg.textContent = collapsed ? "▴" : "▾";
@@ -270,7 +277,9 @@
   function header(coin, page) {
     const img = coin && coin.img ? `<img src="${esc(coin.img)}" alt="">` : `<img src="${chrome.runtime.getURL("icons/icon32.png")}" alt="">`;
     const tk = coin ? "$" + esc(coin.tk) : "Gator Eyes";
-    return `<div class="hd">${img}<b>${tk}</b><span class="src">${page.src === "snek" ? "Snek.fun" : "Solada"}</span><span class="sp"></span><span class="sub">Gator Eyes</span><span class="tg">${collapsed ? "▴" : "▾"}</span></div>`;
+    const starred = coin && watch.some((w) => w.id === coin.id);
+    const star = coin ? `<button type="button" class="star${starred ? " on" : ""}" data-id="${esc(coin.id)}" data-tk="${esc(coin.tk || "")}" title="${starred ? "Remove from" : "Add to"} your Gator Eyes watchlist (shows in the ribbon)" aria-pressed="${!!starred}">${starred ? "★" : "☆"}</button>` : "";
+    return `<div class="hd">${img}<b>${tk}</b>${star}<span class="src">${page.src === "snek" ? "Snek.fun" : "Solada"}</span><span class="sp"></span><span class="sub">Gator Eyes</span><span class="tg">${collapsed ? "▴" : "▾"}</span></div>`;
   }
 
   function view(res, page) {
@@ -358,6 +367,15 @@
     if (lastRes) render(view(lastRes, lastPage));
   }
 
+  function toggleStar(btn) {
+    const id = btn.dataset.id, tk = btn.dataset.tk;
+    const has = watch.some((w) => w.id === id);
+    watch = has ? watch.filter((w) => w.id !== id) : [...watch, { id, tk }].slice(-50);
+    btn.classList.toggle("on", !has); btn.textContent = has ? "☆" : "★"; btn.setAttribute("aria-pressed", String(!has));
+    btn.title = (has ? "Add to" : "Remove from") + " your Gator Eyes watchlist (shows in the ribbon)";
+    try { chrome.storage.local.set({ watch }); } catch {}
+  }
+
   function refresh(page) {
     lastPage = page;
     chrome.runtime.sendMessage({ type: "coin", page, hide }, (res) => {
@@ -388,7 +406,15 @@
     }
   }
 
-  try { chrome.storage.local.get(["collapsed", "askOpen", "hide"], (v) => { collapsed = !!(v && v.collapsed); askOpen = !!(v && v.askOpen); hide = Array.isArray(v && v.hide) ? v.hide : []; tick(); }); } catch { tick(); }
+  try { chrome.storage.local.get(["collapsed", "askOpen", "hide", "watch", "ribbon"], (v) => { collapsed = !!(v && v.collapsed); askOpen = !!(v && v.askOpen); hide = Array.isArray(v && v.hide) ? v.hide : []; watch = Array.isArray(v && v.watch) ? v.watch : []; ribOn = (v && v.ribbon) !== "off"; tick(); }); } catch { tick(); }
+  // Stars and the ribbon setting can change from the popup or another tab.
+  try {
+    chrome.storage.onChanged.addListener((ch, area) => {
+      if (area !== "local") return;
+      if (ch.watch) { watch = Array.isArray(ch.watch.newValue) ? ch.watch.newValue : []; redraw(); }
+      if (ch.ribbon) { ribOn = ch.ribbon.newValue !== "off"; const h = document.getElementById(HOST_ID); if (h) h.shadowRoot.querySelector(".ge").classList.toggle("rib", ribOn); }
+    });
+  } catch {}
   // Both sites are single-page apps: watch for in-app navigation.
   setInterval(tick, 1000);
   window.addEventListener("popstate", tick);

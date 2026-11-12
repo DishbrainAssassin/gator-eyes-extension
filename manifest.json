@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Gator Eyes for Cardano",
-  "version": "1.4.0",
-  "description": "Free Gator Eyes flow panel and Ask Quagmire on Solada.fun and Snek.fun coin pages, plus a Gator Run Downs tab for free picks.",
+  "version": "1.5.0",
+  "description": "Free Gator Eyes flow panel, trade ribbon and Ask Quagmire on Solada.fun and Snek.fun, plus a Gator Run Downs tab for free picks.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -37,6 +37,7 @@
         "https://snek.fun/*"
       ],
       "js": [
+        "ribbon.js",
         "content.js"
       ],
       "run_at": "document_idle"

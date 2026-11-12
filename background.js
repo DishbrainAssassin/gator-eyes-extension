@@ -115,6 +115,51 @@ async function topMovers() {
   return { ok: true, coins: coins.slice(0, 8), updatedAt: tok.updatedAt, adaUsd: tok.adaUsd, site: SITE };
 }
 
+// ---- Trade ribbon -------------------------------------------------------------------------------------------------
+// The strip along the bottom of Solada / Snek.fun pages. Three sources, picked by the user:
+//   trades: the newest trades on the Gator Eyes tape (/feed, same as the site's live tape)
+//   rd:     Gator Run Downs races open for picks, with your own pick when you're signed in at gatorrundowns.fun
+//   watch:  coins starred in the extension (saved in this browser only; the list never leaves it)
+const tradeItem = (t) => ({ t: "trade", id: t.id, tk: t.tk, src: t.src, side: t.side, ada: t.ada, at: t.at, img: t.img || null });
+
+async function ribbon(mode, watch) {
+  if (mode === "rd") {
+    const [now, pad] = await Promise.all([
+      cached(RD + "/api/now", 15e3).catch(() => null),
+      // Signed-in view (adds "mine" and Quagmire's call). Same request the popup's Run Downs tab makes.
+      fetch(RD + "/api/paddock", { credentials: "include", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+    ]);
+    if (!now && !pad) throw new Error("Gator Run Downs isn't answering");
+    const t = Date.now(), target = (now && now.target) || { buyers: 15, netAda: 1000 };
+    const byId = Object.fromEntries(((pad && pad.coins) || []).map((c) => [c.coinId, c]));
+    const open = ((now && now.open) || []).filter((x) => !x.called && Number(x.closesAt) > t);
+    for (const c of (pad && pad.coins) || []) if (!open.some((x) => x.coinId === c.coinId) && Number(c.closesAt) > t && !(c.facts && (c.facts.calledAt || c.facts.devSellAt))) open.push({ coinId: c.coinId, ticker: c.ticker, closesAt: c.closesAt });
+    const items = open.map((x) => {
+      const p = byId[x.coinId] || {}, f = p.facts || {};
+      return { t: "race", id: x.coinId, tk: x.ticker || p.ticker || x.name || "coin", img: p.img || null, closesAt: Number(x.closesAt),
+        buyers: f.buyers != null ? f.buyers : x.buyers, net: f.net != null ? f.net : x.net, target, quag: p.quagmire == null ? null : !!p.quagmire, mine: p.mine == null ? null : p.mine };
+    });
+    if (now && now.last) items.push({ t: "last", tk: now.last.ticker, lunge: !!now.last.lunge, at: now.last.settledAt });
+    return { ok: true, mode, items, play: (now && now.play) || RD + "/paddock.html", results: (now && now.results) || RD + "/track.html" };
+  }
+  if (mode === "watch") {
+    const ids = (Array.isArray(watch) ? watch : []).map((w) => (typeof w === "string" ? w : w && w.id)).filter(Boolean);
+    if (!ids.length) return { ok: true, mode, items: [] };
+    const [tok, feed] = await Promise.all([cached("/tokens"), cached("/feed", 20e3).catch(() => null)]);
+    const set = new Set(ids), coins = tok.coins || [];
+    const items = ids.map((id) => {
+      const c = coins.find((x) => x.id === id);
+      if (!c) return { t: "coin", id, tk: (watch.find((w) => w && w.id === id) || {}).tk || id, missing: true };
+      const d = (c.w && c.w.h24) || null;
+      return { t: "coin", id, tk: c.tk, src: c.src, img: c.img || null, price: c.price, ch: d ? d.ch : null, net: d ? d.net : null, v: d ? d.v : 0, prog: c.kind === "curve" && c.prog != null ? c.prog / 100 : null, cs: c.cs };
+    });
+    const tr = ((feed && feed.tape) || []).filter((t) => set.has(t.id)).slice(0, 12).map(tradeItem);
+    return { ok: true, mode, items: [...items, ...tr], adaUsd: tok.adaUsd };
+  }
+  const feed = await cached("/feed", 20e3);
+  return { ok: true, mode: "trades", items: (feed.tape || []).slice(0, 30).map(tradeItem), adaUsd: feed.adaUsd };
+}
+
 // Ask Quagmire: the same POST /quag the gatoreyes.fun chat box uses (same answers as /ask in Discord).
 // Sends only the question typed into the panel (and the previous one, for follow-ups). Never cached.
 async function askQuag(q, prev, tk) {
@@ -140,7 +185,7 @@ async function askQuag(q, prev, tk) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}, msg.hide) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : Promise.resolve({ ok: false, error: "unknown message" });
+  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}, msg.hide) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : msg && msg.type === "ribbon" ? ribbon(msg.mode, msg.watch) : Promise.resolve({ ok: false, error: "unknown message" });
   job.then(sendResponse, (e) => sendResponse({ ok: false, error: String(e && e.message || e) }));
   return true; // async response
 });
