@@ -30,6 +30,7 @@
   let askPrev = "";       // last question asked, sent as context for follow-ups
 
   const n = (v, d = 0) => Number(v || 0).toLocaleString("en-US", { maximumFractionDigits: d });
+  const usd = (v) => (Math.abs(v) >= 1e4 ? ada(v) : n(v, Math.abs(v) < 100 ? 2 : 0));
   const ada = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + "M" : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + "k" : n(v));
   const pct = (p) => (p == null ? "–" : (p > 0 ? "+" : p < 0 ? "−" : "") + Math.abs(p).toFixed(1) + "%");
   const ago = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1e3); return s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + "m" : s < 86400 ? Math.round(s / 3600) + "h" : Math.round(s / 86400) + "d"; };
@@ -290,6 +291,7 @@
         <div class="ft"><a href="${site}/tokens.html" target="_blank" rel="noopener">Open gatoreyes.fun</a><span class="sub">read-only</span></div>`;
     }
     const w = coin.w || {}, d = w.h24 || { v: 0, n: 0, b: 0, s: 0, net: 0, wal: 0, ch: null }, h = w.h1;
+    const rate = Number(res.adaUsd) || 0, sol = coin.sv != null && Number.isFinite(Number(coin.sv));
     const buyShare = d.v > 0 ? Math.round((d.b / d.v) * 100) : 50;
     const netCls = d.net > 0 ? "up" : d.net < 0 ? "dn" : "mu";
     const chCls = d.ch > 0 ? "up" : d.ch < 0 ? "dn" : "mu";
@@ -341,10 +343,11 @@
     return header(coin, page) + `
       <div class="bd">${race}
         ${on("stats") ? `<div class="g">
-          <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div></div>
+          <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div>${rate ? `<div class="sub">≈ ${usd(d.v * rate)} USDCx</div>` : ""}</div>
           <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div></div>
           <div><div class="k">Trades · wallets</div><div class="v">${n(d.n)} · ${n(d.wal)}</div></div>
           <div><div class="k">Price 24h</div><div class="v ${chCls}">${pct(d.ch)}</div></div>
+          ${sol ? `<div style="grid-column:1/-1"><div class="k">Solana pool 24h</div><div class="v">${usd(coin.sv)} USDC</div><div class="sub">All traders on its Solana pool</div></div>` : ""}
         </div>` : ""}
         ${on("flow") ? `<div class="bar" title="buys vs sells, 24h"><i style="width:${buyShare}%"></i></div>
         <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${h ? ` · last hour ${ada(h.v)} ADA (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA` : ""}</div>` : ""}
