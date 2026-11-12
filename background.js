@@ -29,6 +29,7 @@ async function cached(path) {
 
 // Match the coin a page is showing against the /tokens list.
 //   Solada: https://www.solada.fun/coin/<id>          -> c.id === id  (or c.slug === id)
+//           https://www.solada.fun/markets?token=<unit> -> c.unit === unit (policy id + hex asset name)
 //   Snek:   https://www.snek.fun/token/<policy+hex>   -> c.slug === asset or c.id === "snek:<policy>.<hex>"
 function findCoin(coins, page) {
   const key = String(page.key || "").trim();
@@ -37,7 +38,9 @@ function findCoin(coins, page) {
   if (page.src === "snek") {
     return coins.find((c) => c.src === "snek" && (String(c.slug || "").toLowerCase() === lk || String(c.id || "").slice(5).replace(".", "").toLowerCase() === lk)) || null;
   }
-  return coins.find((c) => c.src === "solada" && (String(c.id || "").toLowerCase() === lk || String(c.slug || "").toLowerCase() === lk)) || null;
+  return coins.find((c) => c.src === "solada" && (String(c.id || "").toLowerCase() === lk || String(c.slug || "").toLowerCase() === lk || String(c.unit || "") === lk))
+    // A Markets-page unit that isn't a Solada coin may still be a Snek.fun coin (its slug is the same unit).
+    || (/^[0-9a-f]{56,}$/.test(lk) ? coins.find((c) => c.src === "snek" && String(c.slug || "").toLowerCase() === lk) : null) || null;
 }
 
 async function coinInfo(page) {
