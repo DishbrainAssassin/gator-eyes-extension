@@ -47,6 +47,15 @@
   .btn { display: inline-block; padding: 6px 10px; border-radius: 8px; background: #c9a227; color: #0d0f0c; font-weight: 700; }
   .btn:hover { text-decoration: none; filter: brightness(1.08); }
   label.al { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+  .rbx { padding: 10px 12px; border-top: 1px solid #2a2e26; }
+  .rbx .row { display: flex; align-items: center; gap: 8px; }
+  .rbx select, .rbx input { font: 12.5px inherit; font-family: inherit; color: #e6e6e0; background: #0a0c09; border: 1px solid #2a2e26; border-radius: 6px; padding: 5px 6px; }
+  .rbx select { flex: 1; } .rbx input { flex: 1; min-width: 0; }
+  .rbx button { font: 600 12px inherit; font-family: inherit; border-radius: 6px; padding: 5px 9px; cursor: pointer; border: 1px solid #c9a227; background: #c9a227; color: #0d0f0c; }
+  .wl { display: flex; flex-wrap: wrap; gap: 5px; margin: 8px 0; }
+  .wl span { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px 2px 8px; border-radius: 999px; background: #1a1e17; border: 1px solid #2a2e26; font-size: 12px; }
+  .wl button { background: none; border: 0; color: #9a9f93; padding: 0 4px; font-size: 14px; cursor: pointer; }
+  .wl button:hover { color: #ee7b6d; }
   .fine { padding: 0 12px 10px; font-size: 11px; color: #7c8176; }
 </style></head>
 <body>
@@ -59,6 +68,16 @@
   <section id="p-movers" role="tabpanel" aria-labelledby="t-movers">
     <div class="k">Most traded, last 24h</div>
     <div id="list"><div class="note">Loading…</div></div>
+    <div class="rbx">
+      <div class="k" style="padding:0 0 6px">Ribbon on Solada and Snek.fun</div>
+      <div class="row"><select id="rbmode" aria-label="What the ribbon shows">
+        <option value="trades">Gator Eyes trade feed</option><option value="rd">Gator Run Downs picks</option><option value="watch">My watchlist</option><option value="off">Off</option>
+      </select></div>
+      <div class="k" style="padding:10px 0 0">Watchlist <span class="mu" id="wlct"></span></div>
+      <div class="wl" id="wl"></div>
+      <form class="row" id="wlimp"><input id="wlurl" placeholder="Paste a gatoreyes.fun watchlist link" aria-label="gatoreyes.fun watchlist link"><button type="submit">Import</button></form>
+      <div class="rs" id="wlnote">Star coins with ☆ in the coin panel. Saved in this browser only.</div>
+    </div>
     <div class="ft"><a href="https://gatoreyes.fun/" target="_blank" rel="noopener">gatoreyes.fun</a><span id="upd"></span></div>
   </section>
 

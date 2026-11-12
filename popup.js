@@ -27,6 +27,40 @@ chrome.runtime.sendMessage({ type: "top" }, (res) => {
   $("upd").textContent = res.updatedAt ? "updated " + ago(Date.parse(res.updatedAt)) + " ago" : "";
 });
 
+// ---- Ribbon and watchlist ----------------------------------------------------------------------------------------
+// "ribbon": what the strip on Solada/Snek.fun shows. "watch": starred coins [{ id, tk }], saved in this browser only.
+let watch = [];
+function paintWatch() {
+  $("wlct").textContent = watch.length ? `· ${watch.length}` : "";
+  $("wl").innerHTML = watch.length ? watch.map((w) => `<span>$${esc(w.tk || w.id)}<button type="button" data-rm="${esc(w.id)}" title="Remove" aria-label="Remove $${esc(w.tk || w.id)}">×</button></span>`).join("") : '<span class="mu" style="border:0;background:none;padding:0">Nothing starred yet.</span>';
+}
+chrome.storage.local.get(["ribbon", "watch"], (v) => {
+  $("rbmode").value = (v && v.ribbon) || "trades";
+  watch = Array.isArray(v && v.watch) ? v.watch : [];
+  paintWatch();
+});
+$("rbmode").addEventListener("change", (e) => chrome.storage.local.set({ ribbon: e.target.value }));
+$("wl").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-rm]"); if (!b) return;
+  watch = watch.filter((w) => w.id !== b.dataset.rm); chrome.storage.local.set({ watch }); paintWatch();
+});
+// The gatoreyes.fun Watchlist page's "Copy link to this list" gives .../watchlist.html?w=id1,id2. Same id check as the site.
+$("wlimp").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const note = $("wlnote"); let w = "";
+  try { w = new URL($("wlurl").value.trim()).searchParams.get("w") || ""; } catch { w = ""; }
+  const ok = /^(snek:[0-9a-f]{56}\.[0-9a-f]{0,64}|[A-Za-z0-9_-]{2,80})$/;
+  const ids = [...new Set(w.split(",").map((x) => x.trim()).filter((x) => ok.test(x)))].filter((id) => !watch.some((x) => x.id === id));
+  if (!w) { note.className = "rs err"; note.textContent = "That doesn't look like a watchlist link. On gatoreyes.fun/watchlist.html, tap Copy link to this list."; return; }
+  if (!ids.length) { note.className = "rs ok"; note.textContent = "Those coins are already on your list."; return; }
+  chrome.runtime.sendMessage({ type: "ribbon", mode: "watch", watch: ids }, (res) => {
+    const names = {}; for (const it of (res && res.items) || []) if (it.t === "coin") names[it.id] = it.tk;
+    watch = [...watch, ...ids.map((id) => ({ id, tk: names[id] || id }))].slice(-50);
+    chrome.storage.local.set({ watch }); paintWatch();
+    $("wlurl").value = ""; note.className = "rs ok"; note.textContent = `Added ${ids.length} coin${ids.length === 1 ? "" : "s"}.`;
+  });
+});
+
 // ---- Run Downs ----------------------------------------------------------------------------------------------
 const R = globalThis.GERD;
 const GATE = R.RD + "/gate.html";
