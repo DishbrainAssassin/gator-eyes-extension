@@ -48,7 +48,7 @@ Not financial advice. Gator Eyes is independent and not affiliated with Solada.f
 **Category:** Tools
 **Language:** English
 **Store icon:** `icons/icon128.png`
-**Screenshots (1280x800):** `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`, `shot-4-run-downs.png`
+**Screenshots (1280x800):** `shot-5-extras.png` (v1.3.0 panel), `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`, `shot-4-run-downs.png`
 **Small promo tile (440x280):** `promo-440x280.png`
 **Official URL / Homepage:** https://www.gatoreyes.fun/
 **Support URL:** the Gator Eyes Discord invite
@@ -64,7 +64,7 @@ Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volu
 **Permission justification, storage:**
 
 ```
-Remembers whether the user collapsed the panel, and keeps a copy of the public Gator Eyes data for 60 seconds so it isn't downloaded again on every page.
+Remembers whether the user collapsed the panel or opened the Ask Quagmire box, and keeps a short-lived copy of the public Gator Eyes data (15 seconds to 5 minutes) so it isn't downloaded again on every page.
 ```
 
 **Permission justification, alarms:**
