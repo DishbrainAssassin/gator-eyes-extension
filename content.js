@@ -18,7 +18,11 @@
   const pct = (p) => (p == null ? "–" : (p > 0 ? "+" : p < 0 ? "−" : "") + Math.abs(p).toFixed(1) + "%");
   const ago = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1e3); return s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + "m" : s < 86400 ? Math.round(s / 3600) + "h" : Math.round(s / 86400) + "d"; };
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const KIND = { big: "Whale trade", spike: "Volume spike", dev: "Creator sell", launch: "Fast launch", watch: "Watch", gaey: "$GAEY" };
+  const KIND = { big: "Whale trade", spike: "Volume spike", dev: "Creator sell", launch: "Fast Lunge", hatch: "Hatchling", watch: "Watch", gaey: "$GAEY" };
+  const dur = (ms) => { const m = Math.max(0, Math.round(ms / 6e4)); return m < 60 ? m + "m" : m < 1440 ? Math.floor(m / 60) + "h " + (m % 60) + "m" : Math.floor(m / 1440) + "d " + Math.floor((m % 1440) / 60) + "h"; };
+  const until = (ms) => { const d = ms - Date.now(); return d < 3600e3 ? "in " + Math.max(1, Math.round(d / 6e4)) + "m" : d < 86400e3 ? "in " + Math.round(d / 3600e3) + "h" : "in " + Math.round(d / 86400e3) + "d"; };
+  const day = (ms) => new Date(ms).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const sp = (p) => (p == null ? "–" : p > 0 && p < 0.01 ? "<0.01%" : (p >= 10 ? p.toFixed(1) : p.toFixed(2)) + "%");
 
   function pageOf(href) {
     const u = new URL(href);
@@ -63,6 +67,18 @@
     .ft { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #2a2e26; background: #101310; font-size: 12px; }
     a { color: #c9a227; text-decoration: none; font-weight: 600; } a:hover { text-decoration: underline; }
     .note { padding: 12px; color: #9a9f93; }
+    .al .r { display: block; padding: 3px 0; }
+    .al .r .l { display: flex; justify-content: space-between; gap: 8px; }
+    .al .r .m { color: #9a9f93; font-size: 11.5px; }
+    .ex { margin-top: 10px; border-top: 1px solid #2a2e26; padding-top: 8px; display: grid; gap: 5px; }
+    .ex .row { display: grid; grid-template-columns: 74px 1fr; gap: 8px; font-size: 12px; }
+    .ex .row .k { padding-top: 1px; font-size: 10.5px; }
+    .ex .ok { color: #7ed48a; }
+    .race { display: flex; align-items: center; gap: 8px; margin: -10px -12px 10px; padding: 8px 12px; background: #1d2a16; border-bottom: 1px solid #2f4a22; font-size: 12px; }
+    .race b { color: #9be08f; }
+    .race .sp { flex: 1; }
+    .race a { background: #c9a227; color: #0d0f0c; border-radius: 6px; padding: 4px 9px; }
+    .race a:hover { text-decoration: none; filter: brightness(1.08); }
     .ge.min .bd, .ge.min .ft, .ge.min .ask { display: none; }
     .ask { border-top: 1px solid #2a2e26; }
     .ask .tgl { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 12px; background: none; border: 0; color: #c9a227;
@@ -233,9 +249,51 @@
     const chCls = d.ch > 0 ? "up" : d.ch < 0 ? "dn" : "mu";
     const q = encodeURIComponent(coin.tk || "");
     const cid = encodeURIComponent(coin.id || "");
-    const alerts = (res.alerts || []).map((a) => `<div><span>${esc(KIND[a.kind] || a.kind)}${a.ada ? " · " + ada(a.ada) + " ADA" : ""}${a.side ? " " + (a.side === "buy" ? "buy" : "sell") : ""}</span><span class="t">${ago(a.at)} ago</span></div>`).join("");
+    const ch = (v) => (v == null ? "" : `<span class="${v > 0 ? "up" : v < 0 ? "dn" : "mu"}">${pct(v)}</span>`);
+    const alerts = (res.alerts || []).map((a) => {
+      const bits = [];
+      if (a.ada) bits.push(ada(a.ada) + " ADA" + (a.side && a.kind !== "spike" ? " " + a.side : ""));
+      if (a.kind === "spike" && a.pace) bits.push(a.pace + "x normal pace");
+      if (a.kind === "launch" && a.wallets) bits.push(a.wallets + " wallets");
+      if (a.kind === "big" && a.creator) bits.push("creator wallet");
+      const after = a.h1 != null || a.h24 != null ? `Price after: 1h ${a.h1 != null ? ch(a.h1) : "–"}${a.h24 != null ? " · 24h " + ch(a.h24) : ""}` : "";
+      return `<div class="r"><div class="l"><span>${esc(KIND[a.kind] || a.kind)}</span><span class="t">${ago(a.at)} ago</span></div>${bits.length || after ? `<div class="m">${esc(bits.join(" · "))}${bits.length && after ? " · " : ""}${after}</div>` : ""}</div>`;
+    }).join("");
+    const x = res.extra || {};
+    const rows = [];
+    // Launch speed and age
+    if (coin.born) {
+      const age = dur(Date.now() - coin.born);
+      if (coin.cs === "graduated" && coin.gAt) rows.push(["Launch", `Graduated in ${dur(coin.gAt - coin.born)} · ${age} old`]);
+      else if (coin.prog != null && coin.kind === "curve") rows.push(["Launch", `${(coin.prog / 100).toFixed(1)}% to graduation · ${age} old`]);
+      else rows.push(["Launch", `${age} old`]);
+    }
+    // Creator wallet
+    if (x.creator) {
+      const c = x.creator;
+      const held = c.pct != null ? `Holds ${sp(c.pct)}` : c.under != null ? `Holds under ${sp(c.under)}` : "";
+      const lk = c.locked > 0 ? `${sp(c.locked)} locked` : "";
+      const sold = c.sold > 0 ? `<span class="dn">sold ${ada(c.sold)} ADA</span>${c.last ? " " + ago(c.last) + " ago" : ""}` : (c.full ? `<span class="ok">no sells in 24h</span>` : "no sells in recent trades");
+      rows.push(["Creator", [esc(held), esc(lk), sold].filter(Boolean).join(" · ")]);
+    }
+    // Next unlock
+    if (x.unlock && x.unlock.next) {
+      const u = x.unlock.next;
+      rows.push(["Next unlock", `${sp(u.pct)}${u.dev ? " (creator)" : ""} · ${esc(day(u.at))}, ${until(u.at)}${u.ver === "script" ? ` · <span class="ok" title="Lock script checked on the chain">✓ on-chain</span>` : ""}${x.unlock.more ? ` · +${x.unlock.more} more` : ""}`]);
+    } else if (x.unlock && x.unlock.lockedPct > 0) rows.push(["Unlocks", `${sp(x.unlock.lockedPct)} locked, no upcoming date found`]);
+    // Liquidity (shows once the liquidity tracker is live)
+    if (x.liq) {
+      const sh = x.liq.share, parts = [];
+      if (sh.solada) parts.push(`Solada ${Math.round(sh.solada)}%`);
+      if (sh.creator) parts.push(`creator ${Math.round(sh.creator)}%`);
+      if (sh.burned) parts.push(`burned ${Math.round(sh.burned)}%`);
+      if (sh.other) parts.push(`others ${Math.round(sh.other)}%`);
+      rows.push(["Liquidity", `${ada(x.liq.ada)} ADA in pool${x.liq.depth != null ? ` (${x.liq.depth.toFixed(1)}% of MC)` : ""}${parts.length ? " · LP: " + esc(parts.join(", ")) : ""}${x.liq.ch24 ? " · 24h " + ch(x.liq.ch24) : ""}`]);
+    }
+    const extras = rows.length ? `<div class="ex">${rows.map(([k, v]) => `<div class="row"><span class="k">${esc(k)}</span><span>${v}</span></div>`).join("")}</div>` : "";
+    const race = x.race ? `<div class="race"><span><b>Racing in Gator Run Downs</b> · picks close ${until(x.race.closesAt)}${x.race.buyers != null ? ` · ${n(x.race.buyers)} buyers` : ""}</span><span class="sp"></span><a href="${esc(x.race.play)}" target="_blank" rel="noopener">Pick</a></div>` : "";
     return header(coin, page) + `
-      <div class="bd">
+      <div class="bd">${race}
         <div class="g">
           <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div></div>
           <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div></div>
@@ -244,7 +302,8 @@
         </div>
         <div class="bar" title="buys vs sells, 24h"><i style="width:${buyShare}%"></i></div>
         <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${h ? ` · last hour ${ada(h.v)} ADA (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA` : ""}</div>
-        ${alerts ? `<div class="al"><div class="k">Alerts, last 24h</div>${alerts}</div>` : ""}
+        ${extras}
+        ${alerts ? `<div class="al"><div class="k">Gator Eyes alerts, last 24h</div>${alerts}</div>` : ""}
       </div>
       <div class="ft">
         <span><a href="${site}/coincard.html?coin=${cid}" target="_blank" rel="noopener">Coin card</a> · <a href="${site}/holders.html?coin=${cid}" target="_blank" rel="noopener">Holders</a> · <a href="${site}/tokens.html?q=${q}" target="_blank" rel="noopener">Tokens</a></span>

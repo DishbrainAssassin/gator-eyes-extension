@@ -17,7 +17,12 @@ Gator Eyes is a free, automated tracker for Cardano launchpads. This extension a
 • 24h volume and net flow (ADA bought minus sold)
 • Trades, unique wallets and 24h price change
 • A buys-vs-sells bar and last-hour volume
-• Gator Eyes alerts for that coin in the last 24 hours (whale trades, volume spikes, creator sells)
+• Gator Eyes alerts for that coin in the last 24 hours (whale trades, volume spikes, creator sells) with their size, pace and what the price did 1 hour and 24 hours later
+• Launch speed: how fast the coin graduated (or how close it is) and how old it is
+• Creator watch: the creator wallet's holdings, locked supply and any creator sells
+• Next unlock: the next locked-supply release, its date and whether the lock was checked on-chain
+• Liquidity: pool size, depth next to market cap and who holds the LP tokens (graduated coins)
+• A banner when the coin is racing in Gator Run Downs, with a link to make your pick
 • One-click links to the coin card, holder snapshot and tokens table on gatoreyes.fun
 • Ask Quagmire right in the panel: holders, burns, unlocks or any question about the coin, answered from live Gator Eyes data
 
@@ -77,13 +82,13 @@ Shows a desktop notification when a new Gator Run Downs race opens, only after t
 **Permission justification, host permission (gatorrundowns.fun):**
 
 ```
-The Run Downs tab reads open races, the signed-in player's username, points and picks from gatorrundowns.fun, and sends the Lunge / No Lunge pick the player clicks. These are the same API calls the gatorrundowns.fun website makes. The extension does not read or store the sign-in cookie; the browser attaches it.
+The Run Downs tab reads open races (the coin panel also uses this list to show when the coin on screen is racing), the signed-in player's username, points and picks from gatorrundowns.fun, and sends the Lunge / No Lunge pick the player clicks. These are the same API calls the gatorrundowns.fun website makes. The extension does not read or store the sign-in cookie; the browser attaches it.
 ```
 
 **Permission justification, host permission (gator-eyes.nlunn6731.workers.dev):**
 
 ```
-Downloads the public Gator Eyes data feed (/tokens and /feed) that the panel and popup display, and sends questions the user types into the Ask Quagmire box (POST /quag) to get Quagmire's answer. No other user data is sent.
+Downloads the public Gator Eyes data the panel and popup display (/tokens, /feed, /followup, /unlocks, /liquidity, and /holders and /coin-trades for the coin on screen), and sends questions the user types into the Ask Quagmire box (POST /quag) to get Quagmire's answer. No other user data is sent.
 ```
 
 **Content script on solada.fun and snek.fun (if asked under host permissions):**

@@ -7,20 +7,21 @@
 const BASE = "https://gator-eyes.nlunn6731.workers.dev";
 const TTL = 60e3;       // feed cache, ms (the worker itself refreshes about once a minute)
 const SITE = "https://gatoreyes.fun";
+const RD = "https://gatorrundowns.fun";
 
 const mem = {};         // in-memory cache { key: { at, data } }
 
-async function cached(path) {
+async function cached(path, ttl = TTL) {
   const now = Date.now();
   const m = mem[path];
-  if (m && now - m.at < TTL) return m.data;
+  if (m && now - m.at < ttl) return m.data;
   // Service workers get killed between events; keep a copy in session storage.
   try {
     const s = await chrome.storage.session.get(path);
     const v = s && s[path];
-    if (v && now - v.at < TTL) { mem[path] = v; return v.data; }
+    if (v && now - v.at < ttl) { mem[path] = v; return v.data; }
   } catch {}
-  const r = await fetch(BASE + path, { cache: "no-store" });
+  const r = await fetch(path.startsWith("https://") ? path : BASE + path, { cache: "no-store" });
   if (!r.ok) throw new Error("HTTP " + r.status);
   const data = await r.json();
   mem[path] = { at: now, data };
@@ -47,15 +48,63 @@ function findCoin(coins, page) {
 async function coinInfo(page) {
   const tok = await cached("/tokens");
   const coin = findCoin(tok.coins || [], page);
-  let alerts = [];
+  let alerts = [], extra = {};
   if (coin) {
-    try {
-      const feed = await cached("/feed");
-      const cut = Date.now() - 24 * 3600e3;
-      alerts = (feed.alerts || []).filter((a) => a.tokenId === coin.id && a.at >= cut).slice(0, 4);
-    } catch {}
+    const now = Date.now();
+    const [feed, fu, unl, liq, rd, hold, trades] = await Promise.all([
+      cached("/feed").catch(() => null),
+      cached("/followup", 5 * 60e3).catch(() => null),
+      coin.src === "solada" ? cached("/unlocks", 5 * 60e3).catch(() => null) : null,
+      cached("/liquidity", 5 * 60e3).catch(() => null),          // 404 until the liquidity tracker is live; the row stays hidden
+      cached(RD + "/api/now", 15e3).catch(() => null),
+      coin.src === "solada" ? cached("/holders?coin=" + encodeURIComponent(coin.id), 5 * 60e3).catch(() => null) : null,
+      coin.src === "solada" ? cached("/coin-trades?coin=" + encodeURIComponent(coin.id)).catch(() => null) : null,
+    ]);
+    const cut = now - 24 * 3600e3;
+    // Alerts with their size, pace and what the price did 1 h / 24 h later (Alert follow-up).
+    const fuRows = (fu && fu.alerts || []).filter((r) => r[2] === coin.id);
+    alerts = (feed && feed.alerts || []).filter((a) => a.tokenId === coin.id && a.at >= cut).slice(0, 4).map((a) => {
+      const f = fuRows.find((r) => Math.abs(r[0] - a.at) < 90e3 && r[1] === a.kind);
+      const x = /About \*\*([\d.]+)x\*\*/.exec(a.desc || "");
+      const w = /bought by \*\*(\d+) wallets\*\*/.exec(a.desc || "");
+      const chg = (p1) => (f && f[6] && p1 ? (p1 / f[6] - 1) * 100 : null);
+      return { at: a.at, kind: a.kind, ada: a.ada, side: a.side, pace: x ? Number(x[1]) : null, wallets: w ? Number(w[1]) : null,
+        creator: /creator wallet/i.test(a.desc || ""), h1: f ? chg(f[7]) : null, h24: f ? chg(f[8]) : null };
+    });
+    // Next unlock, checked on the chain (Unlock calendar).
+    const uc = unl && (unl.coins || []).find((c) => c.id === coin.id);
+    if (uc) {
+      const open = (uc.locks || []).filter((l) => l.untilMs > now).sort((a, b) => a.untilMs - b.untilMs);
+      extra.unlock = { lockedPct: uc.lockedPct, next: open[0] ? { pct: open[0].pct, at: open[0].untilMs, dev: !!open[0].dev, ver: open[0].ver } : null,
+        more: Math.max(0, open.length - 1), devLocked: open.filter((l) => l.dev).reduce((t, l) => t + (l.pct || 0), 0) };
+    }
+    // Creator wallet: what it holds (holder snapshot) and any sells in recent trades or creator-sell alerts.
+    const launcher = hold && hold.coin && hold.coin.launcher;
+    if (launcher) {
+      const sup = Number(hold.coin.supply || 0), list = hold.holders || [];
+      const me = list.find((h) => h.addr === launcher);
+      let pct = me && sup ? Number(me.qty) / sup * 100 : null, under = null;
+      if (pct == null && sup) {
+        // Not in the list: zero if the list is every holder, else below the smallest listed balance.
+        if (coin.hold && list.length >= coin.hold) pct = 0;
+        else if (list.length) under = Math.min(...list.map((h) => Number(h.qty))) / sup * 100;
+      }
+      const tl = (trades && trades.trades || []);
+      const sells = tl.filter((t) => t.trader === launcher && t.side === "sell" && t.at >= cut);
+      const full = !trades || !trades.more || (tl.length && tl[tl.length - 1].at < cut);
+      let sold = sells.reduce((t, x) => t + (x.ada || 0), 0), last = sells.length ? sells[0].at : null;
+      const devAl = alerts.filter((a) => a.kind === "dev" || a.creator);
+      if (!sold && devAl.length) { sold = devAl.reduce((t, a) => t + (a.ada || 0), 0); last = devAl[0].at; }
+      extra.creator = { pct, under, sold, last, full, locked: extra.unlock ? extra.unlock.devLocked : 0, addr: launcher };
+    }
+    // Liquidity tracker: pool depth and who holds the LP.
+    const lc = liq && (liq.coins || []).find((c) => c.id === coin.id);
+    if (lc) extra.liq = { ada: lc.ada, depth: lc.depth, share: lc.share || {}, ch24: lc.ch24 };
+    // Gator Run Downs: is this coin racing right now?
+    const race = rd && (rd.open || []).find((x) => x.coinId === coin.id && !x.called && Number(x.closesAt) > now);
+    if (race) extra.race = { closesAt: Number(race.closesAt), buyers: race.buyers, net: race.net, target: rd.target || null, play: rd.play || RD + "/paddock.html" };
   }
-  return { ok: true, coin, alerts, updatedAt: tok.updatedAt, adaUsd: tok.adaUsd, site: SITE };
+  return { ok: true, coin, alerts, extra, updatedAt: tok.updatedAt, adaUsd: tok.adaUsd, site: SITE };
 }
 
 async function topMovers() {
@@ -98,7 +147,6 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
 // ---- Gator Run Downs: toolbar badge and optional new-race alerts ------------------------------------------------
 // Reads only the public /api/now list (cached 15 s by the Run Downs worker, no sign-in). The badge shows how many
 // races are open for picks. Alerts are off until the player turns them on in the Run Downs tab.
-const RD = "https://gatorrundowns.fun";
 const ALARM = "rd-now";
 
 function ensureAlarm() {
