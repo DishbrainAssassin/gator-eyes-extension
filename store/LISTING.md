@@ -6,15 +6,16 @@ Copy each block into the matching field in the Chrome Web Store developer dashbo
 
 **Name** (from manifest): Gator Eyes for Cardano
 
-**Summary** (from manifest, max 132 chars): Free Gator Eyes flow panel on Solada.fun and Snek.fun coin pages, plus a Gator Run Downs tab to make free Sprint picks.
+**Summary** (from manifest, max 132 chars): Free Gator Eyes flow panel, trade ribbon and Ask Quagmire on Solada.fun and Snek.fun, plus a Gator Run Downs tab for free picks.
 
 **Description:**
 
 ```
 See where the money is moving on any Solada.fun or Snek.fun coin, right on the coin page.
 
-Gator Eyes is a free, automated tracker for Cardano launchpads. This extension adds a small panel to Solada.fun and Snek.fun coin pages with:
-• 24h volume and net flow (ADA bought minus sold)
+Gator Eyes is a free, automated tracker for Cardano launchpads. This extension adds a small panel to Solada.fun and Snek.fun coin pages, including graduated coins on the Markets page, with:
+• 24h volume and net flow (ADA bought minus sold), with the USDCx value
+• Solana pool 24h volume in USDC for Solada coins that also trade on Solana
 • Trades, unique wallets and 24h price change
 • A buys-vs-sells bar and last-hour volume
 • Gator Eyes alerts for that coin in the last 24 hours (whale trades, volume spikes, creator sells) with their size, pace and what the price did 1 hour and 24 hours later
@@ -24,8 +25,11 @@ Gator Eyes is a free, automated tracker for Cardano launchpads. This extension a
 • Liquidity: pool size, depth next to market cap and who holds the LP tokens (graduated coins)
 • A banner when the coin is racing in Gator Run Downs, with a link to make your pick
 • Customize: pick which sections the panel shows
+• Watchlist: star coins with ☆ and follow them in the ribbon
 • One-click links to the coin card, holder snapshot and tokens table on gatoreyes.fun
 • Ask Quagmire right in the panel: holders, burns, unlocks or any question about the coin, answered from live Gator Eyes data
+
+Trade ribbon along the bottom of Solada.fun and Snek.fun pages: pick the live Gator Eyes trade feed, open Gator Run Downs races or your watchlist, or turn it off.
 
 Click the toolbar icon to see the 8 most traded coins across both launchpads in the last 24 hours.
 
@@ -36,7 +40,7 @@ Gator Run Downs tab:
 • Sign in once at gatorrundowns.fun; the tab uses that sign-in. Same account, same fair-play rules as the site
 
 Private:
-• No wallet connection and no trading
+• No trading
 • Never reads page contents, what you type on the page, cookies or wallets. On coin pages it only checks which coin page you're on
 • Ask Quagmire sends only the question you type, to Gator Eyes, to get an answer
 • The market panel sends nothing about you. The Run Downs tab sends only the picks you make, to gatorrundowns.fun
@@ -49,7 +53,7 @@ Not financial advice. Gator Eyes is independent and not affiliated with Solada.f
 **Category:** Tools
 **Language:** English
 **Store icon:** `icons/icon128.png`
-**Screenshots (1280x800):** `shot-5-extras.png` (v1.3.0 panel), `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`, `shot-4-run-downs.png`
+**Screenshots (1280x800):** `shot-6-solana-ribbon.png` (v1.5.1 panel with Solana volume and trade ribbon), `shot-5-extras.png` (v1.3.0 panel), `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`, `shot-4-run-downs.png`
 **Small promo tile (440x280):** `promo-440x280.png`
 **Official URL / Homepage:** https://www.gatoreyes.fun/
 **Support URL:** the Gator Eyes Discord invite
@@ -65,7 +69,7 @@ Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volu
 **Permission justification, storage:**
 
 ```
-Remembers whether the user collapsed the panel or opened the Ask Quagmire box and which panel sections they chose to show, and keeps a short-lived copy of the public Gator Eyes data (15 seconds to 5 minutes) so it isn't downloaded again on every page.
+Remembers whether the user collapsed the panel or opened the Ask Quagmire box and which panel sections they chose to show, what the trade ribbon shows, and the coins they starred for their watchlist (kept only in the browser), and keeps a short-lived copy of the public Gator Eyes data (15 seconds to 5 minutes) so it isn't downloaded again on every page.
 ```
 
 **Permission justification, alarms:**
