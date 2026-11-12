@@ -18,7 +18,17 @@
   function pageOf(href) {
     const u = new URL(href);
     const h = u.hostname.replace(/^www\./, "");
-    if (h === "solada.fun") { const m = /^\/coin\/([^/?#]+)/.exec(u.pathname); return m ? { src: "solada", key: decodeURIComponent(m[1]) } : null; }
+    if (h === "solada.fun") {
+      const m = /^\/coin\/([^/?#]+)/.exec(u.pathname);
+      if (m) return { src: "solada", key: decodeURIComponent(m[1]) };
+      // Markets page: /markets?token=<policy id + hex asset name>, also repeated as #/token/<unit>.
+      if (/^\/markets\/?$/.test(u.pathname)) {
+        const hm = /^#\/token\/([0-9a-fA-F]{56,})/.exec(u.hash);
+        const t = (hm && hm[1]) || u.searchParams.get("token") || "";
+        return /^[0-9a-fA-F]{56,}$/.test(t) ? { src: "solada", key: t.toLowerCase() } : null;
+      }
+      return null;
+    }
     if (h === "snek.fun") { const m = /^\/token\/([^/?#]+)/.exec(u.pathname); return m ? { src: "snek", key: decodeURIComponent(m[1]) } : null; }
     return null;
   }
