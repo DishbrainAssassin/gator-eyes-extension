@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Gator Eyes for Cardano",
-  "version": "1.0.1",
-  "description": "Free, read-only flow panel on Solada.fun and Snek.fun coin pages: 24h volume, net flow, buys vs sells, wallets and alerts.",
+  "version": "1.1.0",
+  "description": "Free Gator Eyes flow panel on Solada.fun and Snek.fun coin pages, plus a Gator Run Downs tab to make free Sprint picks.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -10,10 +10,12 @@
     "128": "icons/icon128.png"
   },
   "permissions": [
-    "storage"
+    "storage",
+    "alarms"
   ],
   "host_permissions": [
-    "https://gator-eyes.nlunn6731.workers.dev/*"
+    "https://gator-eyes.nlunn6731.workers.dev/*",
+    "https://gatorrundowns.fun/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -40,5 +42,8 @@
       "run_at": "document_idle"
     }
   ],
-  "homepage_url": "https://www.gatoreyes.fun/"
+  "homepage_url": "https://www.gatoreyes.fun/",
+  "optional_permissions": [
+    "notifications"
+  ]
 }
