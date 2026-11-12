@@ -45,7 +45,8 @@ function findCoin(coins, page) {
     || (/^[0-9a-f]{56,}$/.test(lk) ? coins.find((c) => c.src === "snek" && String(c.slug || "").toLowerCase() === lk) : null) || null;
 }
 
-async function coinInfo(page) {
+async function coinInfo(page, hide = []) {
+  const off = new Set(Array.isArray(hide) ? hide : []);   // sections the user turned off: skip their downloads
   const tok = await cached("/tokens");
   const coin = findCoin(tok.coins || [], page);
   let alerts = [], extra = {};
@@ -53,12 +54,12 @@ async function coinInfo(page) {
     const now = Date.now();
     const [feed, fu, unl, liq, rd, hold, trades] = await Promise.all([
       cached("/feed").catch(() => null),
-      cached("/followup", 5 * 60e3).catch(() => null),
-      coin.src === "solada" ? cached("/unlocks", 5 * 60e3).catch(() => null) : null,
-      cached("/liquidity", 5 * 60e3).catch(() => null),          // 404 until the liquidity tracker is live; the row stays hidden
-      cached(RD + "/api/now", 15e3).catch(() => null),
-      coin.src === "solada" ? cached("/holders?coin=" + encodeURIComponent(coin.id), 5 * 60e3).catch(() => null) : null,
-      coin.src === "solada" ? cached("/coin-trades?coin=" + encodeURIComponent(coin.id)).catch(() => null) : null,
+      off.has("alerts") ? null : cached("/followup", 5 * 60e3).catch(() => null),
+      coin.src === "solada" && !off.has("unlock") ? cached("/unlocks", 5 * 60e3).catch(() => null) : null,
+      off.has("liq") ? null : cached("/liquidity", 5 * 60e3).catch(() => null),          // 404 until the liquidity tracker is live; the row stays hidden
+      off.has("race") ? null : cached(RD + "/api/now", 15e3).catch(() => null),
+      coin.src === "solada" && !off.has("creator") ? cached("/holders?coin=" + encodeURIComponent(coin.id), 5 * 60e3).catch(() => null) : null,
+      coin.src === "solada" && !off.has("creator") ? cached("/coin-trades?coin=" + encodeURIComponent(coin.id)).catch(() => null) : null,
     ]);
     const cut = now - 24 * 3600e3;
     // Alerts with their size, pace and what the price did 1 h / 24 h later (Alert follow-up).
@@ -139,7 +140,7 @@ async function askQuag(q, prev, tk) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : Promise.resolve({ ok: false, error: "unknown message" });
+  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}, msg.hide) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : Promise.resolve({ ok: false, error: "unknown message" });
   job.then(sendResponse, (e) => sendResponse({ ok: false, error: String(e && e.message || e) }));
   return true; // async response
 });

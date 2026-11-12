@@ -23,6 +23,7 @@ Gator Eyes is a free, automated tracker for Cardano launchpads. This extension a
 • Next unlock: the next locked-supply release, its date and whether the lock was checked on-chain
 • Liquidity: pool size, depth next to market cap and who holds the LP tokens (graduated coins)
 • A banner when the coin is racing in Gator Run Downs, with a link to make your pick
+• Customize: pick which sections the panel shows
 • One-click links to the coin card, holder snapshot and tokens table on gatoreyes.fun
 • Ask Quagmire right in the panel: holders, burns, unlocks or any question about the coin, answered from live Gator Eyes data
 
@@ -64,7 +65,7 @@ Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volu
 **Permission justification, storage:**
 
 ```
-Remembers whether the user collapsed the panel or opened the Ask Quagmire box, and keeps a short-lived copy of the public Gator Eyes data (15 seconds to 5 minutes) so it isn't downloaded again on every page.
+Remembers whether the user collapsed the panel or opened the Ask Quagmire box and which panel sections they chose to show, and keeps a short-lived copy of the public Gator Eyes data (15 seconds to 5 minutes) so it isn't downloaded again on every page.
 ```
 
 **Permission justification, alarms:**

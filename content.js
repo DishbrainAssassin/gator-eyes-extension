@@ -9,6 +9,20 @@
   let timer = null;
   let collapsed = false;
   let askOpen = false;    // Ask Quagmire section open (remembered)
+  let hide = [];          // sections the user turned off in Customize (remembered)
+  let customizing = false, lastRes = null, lastPage = null;
+  const SECTIONS = [
+    ["stats", "Volume, net flow, trades, price"],
+    ["flow", "Buys vs sells and last hour"],
+    ["race", "Run Downs race banner"],
+    ["launch", "Launch speed and age"],
+    ["creator", "Creator watch"],
+    ["unlock", "Next unlock"],
+    ["liq", "Liquidity"],
+    ["alerts", "Gator Eyes alerts"],
+    ["ask", "Ask Quagmire"],
+  ];
+  const on = (k) => !hide.includes(k);
   let askTk = "";         // ticker of the coin on screen, for the quick questions
   let askEl = null;       // the Ask Quagmire section; kept across the 60 s refreshes so answers and typing survive
   let askPrev = "";       // last question asked, sent as context for follow-ups
@@ -67,6 +81,16 @@
     .ft { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #2a2e26; background: #101310; font-size: 12px; }
     a { color: #c9a227; text-decoration: none; font-weight: 600; } a:hover { text-decoration: underline; }
     .note { padding: 12px; color: #9a9f93; }
+    .cz { padding: 10px 12px 12px; }
+    .cz .k { margin-bottom: 6px; }
+    .cz label { display: flex !important; flex-direction: row; justify-content: flex-start; text-align: left; width: 100%; align-items: center; gap: 8px; padding: 4px 0; cursor: pointer; font-size: 12.5px; }
+    .cz input { accent-color: #c9a227; width: 14px; height: 14px; margin: 0; flex: none; position: static; padding: 0; min-width: 0; }
+    .cz .btns { display: flex; gap: 8px; margin-top: 10px; }
+    .cz button { font: inherit; font-size: 12px; border-radius: 6px; padding: 5px 10px; cursor: pointer; border: 1px solid #2a2e26; background: #161a14; color: #e6e6e6; }
+    .cz button.pri { background: #c9a227; border-color: #c9a227; color: #0d0f0c; }
+    .ft .cfg { color: #9a9f93; cursor: pointer; background: none; border: 0; font: inherit; font-size: 12px; padding: 0; }
+    .ft .cfg:hover { color: #e6e6e6; text-decoration: underline; }
+    .ge.noask .ask { display: none; }
     .al .r { display: block; padding: 3px 0; }
     .al .r .l { display: flex; justify-content: space-between; gap: 8px; }
     .al .r .m { color: #9a9f93; font-size: 11.5px; }
@@ -79,7 +103,7 @@
     .race .sp { flex: 1; }
     .race a { background: #c9a227; color: #0d0f0c; border-radius: 6px; padding: 4px 9px; }
     .race a:hover { text-decoration: none; filter: brightness(1.08); }
-    .ge.min .bd, .ge.min .ft, .ge.min .ask { display: none; }
+    .ge.min .bd, .ge.min .ft, .ge.min .ask, .ge.min .cz { display: none; }
     .ask { border-top: 1px solid #2a2e26; }
     .ask .tgl { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 12px; background: none; border: 0; color: #c9a227;
       font: 600 12px/1.2 inherit; font-family: inherit; cursor: pointer; text-align: left; }
@@ -119,9 +143,22 @@
   function render(html) {
     const host = ensureHost();
     const box = host.shadowRoot.querySelector(".ge");
-    box.className = "ge" + (collapsed ? " min" : "");
+    box.className = "ge" + (collapsed ? " min" : "") + (on("ask") ? "" : " noask");
     const main = box.querySelector(".main");
     main.innerHTML = html;
+    const cfg = main.querySelector(".cfg");
+    if (cfg) cfg.addEventListener("click", () => { customizing = true; redraw(); });
+    const cz = main.querySelector(".cz");
+    if (cz) {
+      cz.addEventListener("change", (e) => {
+        const k = e.target && e.target.dataset && e.target.dataset.k; if (!k) return;
+        hide = e.target.checked ? hide.filter((h) => h !== k) : [...new Set([...hide, k])];
+        try { chrome.storage.local.set({ hide }); } catch {}
+        box.classList.toggle("noask", !on("ask"));
+      });
+      cz.querySelector(".done").addEventListener("click", () => { customizing = false; if (lastPage) refresh(lastPage); else redraw(); });
+      cz.querySelector(".all").addEventListener("click", () => { hide = []; try { chrome.storage.local.set({ hide }); } catch {} cz.querySelectorAll("input").forEach((i) => (i.checked = true)); box.classList.remove("noask"); });
+    }
     updateChips();
     const hd = main.querySelector(".hd");
     if (hd) hd.addEventListener("click", (e) => {
@@ -262,14 +299,14 @@
     const x = res.extra || {};
     const rows = [];
     // Launch speed and age
-    if (coin.born) {
+    if (coin.born && on("launch")) {
       const age = dur(Date.now() - coin.born);
       if (coin.cs === "graduated" && coin.gAt) rows.push(["Launch", `Graduated in ${dur(coin.gAt - coin.born)} · ${age} old`]);
       else if (coin.prog != null && coin.kind === "curve") rows.push(["Launch", `${(coin.prog / 100).toFixed(1)}% to graduation · ${age} old`]);
       else rows.push(["Launch", `${age} old`]);
     }
     // Creator wallet
-    if (x.creator) {
+    if (x.creator && on("creator")) {
       const c = x.creator;
       const held = c.pct != null ? `Holds ${sp(c.pct)}` : c.under != null ? `Holds under ${sp(c.under)}` : "";
       const lk = c.locked > 0 ? `${sp(c.locked)} locked` : "";
@@ -277,12 +314,12 @@
       rows.push(["Creator", [esc(held), esc(lk), sold].filter(Boolean).join(" · ")]);
     }
     // Next unlock
-    if (x.unlock && x.unlock.next) {
+    if (on("unlock") && x.unlock && x.unlock.next) {
       const u = x.unlock.next;
       rows.push(["Next unlock", `${sp(u.pct)}${u.dev ? " (creator)" : ""} · ${esc(day(u.at))}, ${until(u.at)}${u.ver === "script" ? ` · <span class="ok" title="Lock script checked on the chain">✓ on-chain</span>` : ""}${x.unlock.more ? ` · +${x.unlock.more} more` : ""}`]);
-    } else if (x.unlock && x.unlock.lockedPct > 0) rows.push(["Unlocks", `${sp(x.unlock.lockedPct)} locked, no upcoming date found`]);
+    } else if (on("unlock") && x.unlock && x.unlock.lockedPct > 0) rows.push(["Unlocks", `${sp(x.unlock.lockedPct)} locked, no upcoming date found`]);
     // Liquidity (shows once the liquidity tracker is live)
-    if (x.liq) {
+    if (x.liq && on("liq")) {
       const sh = x.liq.share, parts = [];
       if (sh.solada) parts.push(`Solada ${Math.round(sh.solada)}%`);
       if (sh.creator) parts.push(`creator ${Math.round(sh.creator)}%`);
@@ -291,34 +328,47 @@
       rows.push(["Liquidity", `${ada(x.liq.ada)} ADA in pool${x.liq.depth != null ? ` (${x.liq.depth.toFixed(1)}% of MC)` : ""}${parts.length ? " · LP: " + esc(parts.join(", ")) : ""}${x.liq.ch24 ? " · 24h " + ch(x.liq.ch24) : ""}`]);
     }
     const extras = rows.length ? `<div class="ex">${rows.map(([k, v]) => `<div class="row"><span class="k">${esc(k)}</span><span>${v}</span></div>`).join("")}</div>` : "";
-    const race = x.race ? `<div class="race"><span><b>Racing in Gator Run Downs</b> · picks close ${until(x.race.closesAt)}${x.race.buyers != null ? ` · ${n(x.race.buyers)} buyers` : ""}</span><span class="sp"></span><a href="${esc(x.race.play)}" target="_blank" rel="noopener">Pick</a></div>` : "";
+    const race = x.race && on("race") ? `<div class="race"><span><b>Racing in Gator Run Downs</b> · picks close ${until(x.race.closesAt)}${x.race.buyers != null ? ` · ${n(x.race.buyers)} buyers` : ""}</span><span class="sp"></span><a href="${esc(x.race.play)}" target="_blank" rel="noopener">Pick</a></div>` : "";
     return header(coin, page) + `
       <div class="bd">${race}
-        <div class="g">
+        ${on("stats") ? `<div class="g">
           <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div></div>
           <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div></div>
           <div><div class="k">Trades · wallets</div><div class="v">${n(d.n)} · ${n(d.wal)}</div></div>
           <div><div class="k">Price 24h</div><div class="v ${chCls}">${pct(d.ch)}</div></div>
-        </div>
-        <div class="bar" title="buys vs sells, 24h"><i style="width:${buyShare}%"></i></div>
-        <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${h ? ` · last hour ${ada(h.v)} ADA (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA` : ""}</div>
+        </div>` : ""}
+        ${on("flow") ? `<div class="bar" title="buys vs sells, 24h"><i style="width:${buyShare}%"></i></div>
+        <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${h ? ` · last hour ${ada(h.v)} ADA (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA` : ""}</div>` : ""}
         ${extras}
-        ${alerts ? `<div class="al"><div class="k">Gator Eyes alerts, last 24h</div>${alerts}</div>` : ""}
+        ${alerts && on("alerts") ? `<div class="al"><div class="k">Gator Eyes alerts, last 24h</div>${alerts}</div>` : ""}
       </div>
       <div class="ft">
         <span><a href="${site}/coincard.html?coin=${cid}" target="_blank" rel="noopener">Coin card</a> · <a href="${site}/holders.html?coin=${cid}" target="_blank" rel="noopener">Holders</a> · <a href="${site}/tokens.html?q=${q}" target="_blank" rel="noopener">Tokens</a></span>
-        <span class="sub" title="${esc(res.updatedAt || "")}">${res.updatedAt ? ago(Date.parse(res.updatedAt)) + " ago" : ""}</span>
+        <span class="sub"><button type="button" class="cfg" title="Pick what this panel shows">Customize</button>${res.updatedAt ? ` · <span title="${esc(res.updatedAt)}">${ago(Date.parse(res.updatedAt))} ago</span>` : ""}</span>
       </div>`;
   }
 
+  function customizeView(coin, page) {
+    return header(coin, page) + `<div class="cz"><div class="k">Show in this panel</div>${SECTIONS.map(([k, label]) => `<label><input type="checkbox" data-k="${k}"${on(k) ? " checked" : ""}>${esc(label)}</label>`).join("")}
+      <div class="btns"><button type="button" class="pri done">Done</button><button type="button" class="all">Show all</button></div></div>`;
+  }
+  function redraw() {
+    if (!lastPage) return;
+    if (customizing) return render(customizeView(lastRes && lastRes.coin, lastPage));
+    if (lastRes) render(view(lastRes, lastPage));
+  }
+
   function refresh(page) {
-    chrome.runtime.sendMessage({ type: "coin", page }, (res) => {
+    lastPage = page;
+    chrome.runtime.sendMessage({ type: "coin", page, hide }, (res) => {
       if (chrome.runtime.lastError || !res || !res.ok) {
         askTk = "";
         render(header(null, page) + `<div class="note">Couldn't reach the Gator Eyes feed right now.</div>`);
         return;
       }
       askTk = res.coin && res.coin.tk ? String(res.coin.tk) : "";
+      lastRes = res;
+      if (customizing) return;   // don't pull the checklist out from under the user on the 60s refresh
       render(view(res, page));
     });
   }
@@ -331,14 +381,14 @@
       clearInterval(timer); timer = null;
       const host = document.getElementById(HOST_ID);
       if (!page) { if (host) host.remove(); return; }
-      askPrev = "";
+      askPrev = ""; customizing = false; lastRes = null;
       if (askEl) { askEl.querySelector(".ans").innerHTML = ""; }
       refresh(page);
       timer = setInterval(() => refresh(page), 60e3);
     }
   }
 
-  try { chrome.storage.local.get(["collapsed", "askOpen"], (v) => { collapsed = !!(v && v.collapsed); askOpen = !!(v && v.askOpen); tick(); }); } catch { tick(); }
+  try { chrome.storage.local.get(["collapsed", "askOpen", "hide"], (v) => { collapsed = !!(v && v.collapsed); askOpen = !!(v && v.askOpen); hide = Array.isArray(v && v.hide) ? v.hide : []; tick(); }); } catch { tick(); }
   // Both sites are single-page apps: watch for in-app navigation.
   setInterval(tick, 1000);
   window.addEventListener("popstate", tick);
