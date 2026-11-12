@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Gator Eyes for Cardano",
-  "version": "1.1.1",
-  "description": "Free Gator Eyes flow panel on Solada.fun and Snek.fun coin pages, plus a Gator Run Downs tab to make free Sprint picks.",
+  "version": "1.4.0",
+  "description": "Free Gator Eyes flow panel and Ask Quagmire on Solada.fun and Snek.fun coin pages, plus a Gator Run Downs tab for free picks.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
