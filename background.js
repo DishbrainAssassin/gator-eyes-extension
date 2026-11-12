@@ -1,7 +1,8 @@
 // Gator Eyes extension: background service worker.
 // Fetches the public Gator Eyes data feed (same one gatoreyes.fun uses) and
 // answers questions from the content script and the popup. Nothing is sent
-// anywhere; the only network calls are GETs to the Gator Eyes worker.
+// anywhere except the question you type into Ask Quagmire, which goes to the
+// Gator Eyes worker's /quag (the same box as on gatoreyes.fun).
 
 const BASE = "https://gator-eyes.nlunn6731.workers.dev";
 const TTL = 60e3;       // feed cache, ms (the worker itself refreshes about once a minute)
@@ -64,8 +65,32 @@ async function topMovers() {
   return { ok: true, coins: coins.slice(0, 8), updatedAt: tok.updatedAt, adaUsd: tok.adaUsd, site: SITE };
 }
 
+// Ask Quagmire: the same POST /quag the gatoreyes.fun chat box uses (same answers as /ask in Discord).
+// Sends only the question typed into the panel (and the previous one, for follow-ups). Never cached.
+async function askQuag(q, prev, tk) {
+  q = String(q || "").replace(/\s+/g, " ").trim().slice(0, 200);
+  if (!q) return { ok: false, error: "empty" };
+  const ctl = new AbortController();
+  const tm = setTimeout(() => ctl.abort(), 10e3);
+  try {
+    const r = await fetch(BASE + "/quag", { method: "POST", cache: "no-store", headers: { "content-type": "text/plain" },
+      body: JSON.stringify({ q, prev: String(prev || "").slice(0, 200), pg: "extension" }), signal: ctl.signal });
+    if (r.status === 429) return { ok: true, html: "Slow down a little, I'm still crunching. Try again in a minute." };
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    // A plain question Quagmire couldn't place ("holders?") gets one retry naming the coin on screen.
+    if (j.fb && tk && !/\$[a-z0-9]/i.test(q)) {
+      const r2 = await fetch(BASE + "/quag", { method: "POST", cache: "no-store", headers: { "content-type": "text/plain" },
+        body: JSON.stringify({ q: `$${tk} ${q}`.slice(0, 200), prev: "", pg: "extension" }), signal: ctl.signal }).catch(() => null);
+      const j2 = r2 && r2.ok ? await r2.json().catch(() => null) : null;
+      if (j2 && !j2.fb) return { ok: true, html: String(j2.html || ""), fb: false };
+    }
+    return { ok: true, html: String(j.html || ""), fb: !!j.fb };
+  } finally { clearTimeout(tm); }
+}
+
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : Promise.resolve({ ok: false, error: "unknown message" });
+  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : Promise.resolve({ ok: false, error: "unknown message" });
   job.then(sendResponse, (e) => sendResponse({ ok: false, error: String(e && e.message || e) }));
   return true; // async response
 });

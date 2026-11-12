@@ -1,12 +1,17 @@
 // Gator Eyes extension: content script for solada.fun and snek.fun.
 // Shows a small, read-only flow panel on coin pages. It only reads the page
 // URL (never the page contents or your wallet) and asks the background
-// worker for the Gator Eyes numbers for that coin.
+// worker for the Gator Eyes numbers for that coin. The Ask Quagmire box sends
+// only the question typed into it.
 (() => {
   const HOST_ID = "gator-eyes-panel-host";
   let current = null;     // last page key rendered
   let timer = null;
   let collapsed = false;
+  let askOpen = false;    // Ask Quagmire section open (remembered)
+  let askTk = "";         // ticker of the coin on screen, for the quick questions
+  let askEl = null;       // the Ask Quagmire section; kept across the 60 s refreshes so answers and typing survive
+  let askPrev = "";       // last question asked, sent as context for follow-ups
 
   const n = (v, d = 0) => Number(v || 0).toLocaleString("en-US", { maximumFractionDigits: d });
   const ada = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + "M" : Math.abs(v) >= 1e4 ? (v / 1e3).toFixed(1) + "k" : n(v));
@@ -35,7 +40,7 @@
 
   const CSS = `
     :host { all: initial; }
-    .ge { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; width: 300px; max-width: calc(100vw - 32px);
+    .ge { position: fixed; right: 16px; bottom: 16px; z-index: 2147483000; width: 300px; max-width: calc(100vw - 32px); max-height: calc(100vh - 32px); overflow-y: auto;
       font: 13px/1.4 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #e6e6e0;
       background: #0d0f0c; border: 1px solid #2a2e26; border-radius: 12px; box-shadow: 0 12px 32px rgba(0,0,0,.5); overflow: hidden; }
     .hd { display: flex; align-items: center; gap: 8px; padding: 10px 12px; background: #141712; border-bottom: 1px solid #2a2e26; cursor: pointer; user-select: none; }
@@ -58,7 +63,27 @@
     .ft { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 12px; border-top: 1px solid #2a2e26; background: #101310; font-size: 12px; }
     a { color: #c9a227; text-decoration: none; font-weight: 600; } a:hover { text-decoration: underline; }
     .note { padding: 12px; color: #9a9f93; }
-    .ge.min .bd, .ge.min .ft { display: none; }
+    .ge.min .bd, .ge.min .ft, .ge.min .ask { display: none; }
+    .ask { border-top: 1px solid #2a2e26; }
+    .ask .tgl { display: flex; align-items: center; gap: 6px; width: 100%; padding: 8px 12px; background: none; border: 0; color: #c9a227;
+      font: 600 12px/1.2 inherit; font-family: inherit; cursor: pointer; text-align: left; }
+    .ask .tgl:hover { background: #141712; }
+    .ask .tgl span { margin-left: auto; color: #9a9f93; font-weight: 400; }
+    .ask .in { display: none; padding: 0 12px 10px; }
+    .ask.open .in { display: block; }
+    .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+    .chips button { font: 12px/1 inherit; font-family: inherit; color: #e6e6e0; background: #1a1e17; border: 1px solid #2a2e26; border-radius: 999px; padding: 5px 9px; cursor: pointer; }
+    .chips button:hover { border-color: #c9a227; }
+    form { display: flex; gap: 6px; }
+    input { flex: 1; min-width: 0; font: 13px/1.2 inherit; font-family: inherit; color: #e6e6e0; background: #0a0c09; border: 1px solid #2a2e26; border-radius: 8px; padding: 7px 9px; outline: none; }
+    input:focus { border-color: #c9a227; }
+    form button { font: 600 12px/1 inherit; font-family: inherit; color: #0d0f0c; background: #c9a227; border: 0; border-radius: 8px; padding: 0 11px; cursor: pointer; }
+    form button:disabled { opacity: .6; cursor: default; }
+    .ans { margin-top: 8px; max-height: 220px; overflow: auto; font-size: 12.5px; line-height: 1.45; }
+    .ans:empty { display: none; }
+    .ans .q { color: #9a9f93; font-size: 11.5px; margin-bottom: 4px; }
+    .ans ul, .ans ol { margin: 4px 0; padding-left: 18px; }
+    .ans .nfa { color: #9a9f93; font-size: 11px; margin-top: 6px; }
   `;
 
   function ensureHost() {
@@ -69,6 +94,8 @@
     const sh = host.attachShadow({ mode: "open" });
     const st = document.createElement("style"); st.textContent = CSS; sh.appendChild(st);
     const box = document.createElement("div"); box.className = "ge"; sh.appendChild(box);
+    const main = document.createElement("div"); main.className = "main"; box.appendChild(main);
+    box.appendChild(askSection());
     (document.body || document.documentElement).appendChild(host);
     return host;
   }
@@ -77,13 +104,113 @@
     const host = ensureHost();
     const box = host.shadowRoot.querySelector(".ge");
     box.className = "ge" + (collapsed ? " min" : "");
-    box.innerHTML = html;
-    const hd = box.querySelector(".hd");
+    const main = box.querySelector(".main");
+    main.innerHTML = html;
+    updateChips();
+    const hd = main.querySelector(".hd");
     if (hd) hd.addEventListener("click", (e) => {
       if (e.target.closest("a")) return;
       collapsed = !collapsed; box.classList.toggle("min", collapsed);
       try { chrome.storage.local.set({ collapsed }); } catch {}
       const tg = box.querySelector(".tg"); if (tg) tg.textContent = collapsed ? "▴" : "▾";
+    });
+  }
+
+  // ---- Ask Quagmire ------------------------------------------------------------------------------------------------
+  // The same Quagmire as the gatoreyes.fun chat box and /ask in Discord. Only the typed question leaves the browser.
+  const ALLOWED = new Set(["STRONG", "B", "EM", "I", "UL", "OL", "LI", "BR", "P", "SPAN", "CODE", "A"]);
+  function clean(html) {
+    // Quagmire answers are small HTML from our own worker; still, keep only plain formatting and https links.
+    const doc = new DOMParser().parseFromString(`<div>${html}</div>`, "text/html");
+    const out = document.createElement("div");
+    const walk = (src, dst) => {
+      for (const node of src.childNodes) {
+        if (node.nodeType === 3) { dst.appendChild(document.createTextNode(node.nodeValue)); continue; }
+        if (node.nodeType !== 1) continue;
+        if (!ALLOWED.has(node.tagName)) { walk(node, dst); continue; }
+        const el = document.createElement(node.tagName.toLowerCase());
+        if (node.tagName === "A") {
+          const href = node.getAttribute("href") || "";
+          if (!/^https:\/\//i.test(href)) { walk(node, dst); continue; }
+          el.href = href; el.target = "_blank"; el.rel = "noopener noreferrer";
+        }
+        walk(node, el);
+        dst.appendChild(el);
+      }
+    };
+    walk(doc.body.firstChild || doc.body, out);
+    return out;
+  }
+
+  function askSection() {
+    if (askEl) return askEl;
+    const sec = document.createElement("div");
+    sec.className = "ask" + (askOpen ? " open" : "");
+    sec.innerHTML = `<button type="button" class="tgl">Ask Quagmire<span>${askOpen ? "▾" : "▸"}</span></button>
+      <div class="in"><div class="chips"></div>
+        <form><input type="text" maxlength="200" placeholder="Ask about this coin…" aria-label="Ask Quagmire"><button type="submit">Ask</button></form>
+        <div class="ans" aria-live="polite"></div></div>`;
+    const tgl = sec.querySelector(".tgl");
+    tgl.addEventListener("click", () => {
+      askOpen = !askOpen; sec.classList.toggle("open", askOpen);
+      tgl.querySelector("span").textContent = askOpen ? "▾" : "▸";
+      try { chrome.storage.local.set({ askOpen }); } catch {}
+      if (askOpen) sec.querySelector("input").focus();
+    });
+    // Keep the host page's keyboard shortcuts from firing while typing here.
+    for (const ev of ["keydown", "keyup", "keypress"]) sec.addEventListener(ev, (e) => e.stopPropagation());
+    sec.querySelector("form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const inp = sec.querySelector("input");
+      const q = inp.value.trim();
+      if (q) { inp.value = ""; ask(q); }
+    });
+    sec.querySelector(".chips").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-q]");
+      if (b) ask(b.dataset.q);
+    });
+    askEl = sec;
+    return sec;
+  }
+
+  function updateChips() {
+    if (!askEl) return;
+    const box = askEl.querySelector(".chips");
+    const tk = askTk;
+    const want = tk ? [["Summary", `$${tk}`], ["Holders", `$${tk} holders`], ["Burns", `$${tk} burns`], ["Unlocks", `$${tk} unlocks`]]
+      : [["Most traded today", "most traded today"], ["Close to graduating", "what's close to graduating"]];
+    const sig = want.map((w) => w[1]).join("|");
+    if (box.dataset.sig === sig) return;
+    box.dataset.sig = sig;
+    box.innerHTML = want.map(([l, q]) => `<button type="button" data-q="${esc(q)}">${esc(l)}</button>`).join("");
+    askEl.querySelector("input").placeholder = tk ? `Ask about $${tk}…` : "Ask Quagmire…";
+  }
+
+  function ask(q) {
+    if (!askEl) return;
+    const ans = askEl.querySelector(".ans");
+    const btn = askEl.querySelector("form button");
+    // Plain follow-ups ("holders?", "any burns") lean on the coin on screen when nothing else is named.
+    const prev = askPrev || (askTk ? `$${askTk}` : "");
+    // "is it graduating?" / "who holds this coin" -> name the coin on screen, unless a ticker is already given.
+    let sendQ = q;
+    if (askTk && !/\$[a-z0-9]/i.test(q)) {
+      const r = sendQ.replace(/\b(this coin|this token|this one|this|it)\b/i, `$${askTk}`);
+      sendQ = r !== sendQ ? r : sendQ;
+    }
+    btn.disabled = true;
+    ans.innerHTML = `<div class="q">${esc(q)}</div><div class="mu">Quagmire is crunching…</div>`;
+    chrome.runtime.sendMessage({ type: "ask", q: sendQ, prev, tk: askTk }, (res) => {
+      btn.disabled = false;
+      askPrev = q;
+      ans.innerHTML = `<div class="q">${esc(q)}</div>`;
+      if (chrome.runtime.lastError || !res || !res.ok) {
+        ans.insertAdjacentHTML("beforeend", `<div class="mu">Couldn't reach Quagmire right now. Try again in a minute.</div>`);
+        return;
+      }
+      ans.appendChild(clean(res.html));
+      ans.insertAdjacentHTML("beforeend", `<div class="nfa">Live Gator Eyes data. Not financial advice.</div>`);
+      ans.scrollTop = 0;
     });
   }
 
@@ -128,9 +255,11 @@
   function refresh(page) {
     chrome.runtime.sendMessage({ type: "coin", page }, (res) => {
       if (chrome.runtime.lastError || !res || !res.ok) {
+        askTk = "";
         render(header(null, page) + `<div class="note">Couldn't reach the Gator Eyes feed right now.</div>`);
         return;
       }
+      askTk = res.coin && res.coin.tk ? String(res.coin.tk) : "";
       render(view(res, page));
     });
   }
@@ -143,12 +272,14 @@
       clearInterval(timer); timer = null;
       const host = document.getElementById(HOST_ID);
       if (!page) { if (host) host.remove(); return; }
+      askPrev = "";
+      if (askEl) { askEl.querySelector(".ans").innerHTML = ""; }
       refresh(page);
       timer = setInterval(() => refresh(page), 60e3);
     }
   }
 
-  try { chrome.storage.local.get("collapsed", (v) => { collapsed = !!(v && v.collapsed); tick(); }); } catch { tick(); }
+  try { chrome.storage.local.get(["collapsed", "askOpen"], (v) => { collapsed = !!(v && v.collapsed); askOpen = !!(v && v.askOpen); tick(); }); } catch { tick(); }
   // Both sites are single-page apps: watch for in-app navigation.
   setInterval(tick, 1000);
   window.addEventListener("popstate", tick);

@@ -19,6 +19,7 @@ Gator Eyes is a free, automated tracker for Cardano launchpads. This extension a
 • A buys-vs-sells bar and last-hour volume
 • Gator Eyes alerts for that coin in the last 24 hours (whale trades, volume spikes, creator sells)
 • One-click links to the coin card, holder snapshot and tokens table on gatoreyes.fun
+• Ask Quagmire right in the panel: holders, burns, unlocks or any question about the coin, answered from live Gator Eyes data
 
 Click the toolbar icon to see the 8 most traded coins across both launchpads in the last 24 hours.
 
@@ -30,7 +31,8 @@ Gator Run Downs tab:
 
 Private:
 • No wallet connection and no trading
-• Never reads page contents, what you type, cookies or wallets. On coin pages it only checks which coin page you're on
+• Never reads page contents, what you type on the page, cookies or wallets. On coin pages it only checks which coin page you're on
+• Ask Quagmire sends only the question you type, to Gator Eyes, to get an answer
 • The market panel sends nothing about you. The Run Downs tab sends only the picks you make, to gatorrundowns.fun
 
 Free forever. Gator Eyes will never charge for access.
@@ -81,7 +83,7 @@ The Run Downs tab reads open races, the signed-in player's username, points and 
 **Permission justification, host permission (gator-eyes.nlunn6731.workers.dev):**
 
 ```
-Downloads the public Gator Eyes data feed (/tokens and /feed) that the panel and popup display. No user data is sent; requests are plain GETs.
+Downloads the public Gator Eyes data feed (/tokens and /feed) that the panel and popup display, and sends questions the user types into the Ask Quagmire box (POST /quag) to get Quagmire's answer. No other user data is sent.
 ```
 
 **Content script on solada.fun and snek.fun (if asked under host permissions):**
