@@ -42,7 +42,7 @@ Gator Run Downs tab:
 Private:
 • No trading
 • Never reads page contents, what you type on the page, cookies or wallets. On coin pages it only checks which coin page you're on
-• Ask Quagmire sends only the question you type, to Gator Eyes, to get an answer
+• Ask Quagmire sends only the question you type and the ticker of the coin on screen, to Gator Eyes, to get an answer
 • The market panel sends nothing about you. The Run Downs tab sends only the picks you make, to gatorrundowns.fun
 
 Free forever. Gator Eyes will never charge for access.
@@ -93,7 +93,7 @@ The Run Downs tab reads open races (the coin panel also uses this list to show w
 **Permission justification, host permission (gator-eyes.nlunn6731.workers.dev):**
 
 ```
-Downloads the public Gator Eyes data the panel and popup display (/tokens, /feed, /followup, /unlocks, /liquidity, and /holders and /coin-trades for the coin on screen), and sends questions the user types into the Ask Quagmire box (POST /quag) to get Quagmire's answer. No other user data is sent.
+Downloads the public Gator Eyes data the panel and popup display (/tokens, /feed, /followup, /unlocks, /liquidity, and /holders and /coin-trades for the coin on screen), and sends questions the user types into the Ask Quagmire box, with the ticker of the coin on screen (POST /quag), to get Quagmire's answer. No other user data is sent.
 ```
 
 **Content script on solada.fun and snek.fun (if asked under host permissions):**

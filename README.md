@@ -15,7 +15,7 @@ What it does
 What it does not do
 - It never reads page contents, wallets, cookies or anything you type. It only looks at the page URL.
 - Market side: only GETs of public data: `/tokens`, `/feed`, `/coin-trades?coin=` (60s cache), `/followup`, `/unlocks`, `/liquidity`, `/holders?coin=` (5 min cache) on the Gator Eyes worker, and `/api/now` on gatorrundowns.fun (15s). Nothing about you is sent.
-- Ask Quagmire: sends only the question typed (or the quick button pressed) and the previous question, to `POST /quag` on the Gator Eyes worker. Never cached. The worker logs questions anonymously for Quagmire's daily review, tagged `extension`, once worker PR #59 is deployed.
+- Ask Quagmire: sends only the question typed (or the quick button pressed), the previous question and the ticker of the coin on screen (v1.5.2, so "when is the next unlock" answers about that coin), to `POST /quag` on the Gator Eyes worker. Never cached. The worker logs questions anonymously for Quagmire's daily review, tagged `extension`, once worker PR #59 is deployed.
 - Run Downs tab: talks only to gatorrundowns.fun, the same API the site uses (`/api/now`, `/api/me`, `/api/paddock`, `POST /api/pick`). Sign-in happens on the site; Chrome attaches that sign-in to the tab's requests, and the extension never reads or stores it. Picks go through the site's own checks (signed in, fair-play rules accepted, pick window, creator-sell lock, Stewards' hedging and creator checks).
 - The Run Downs worker accepts `POST /api/pick` (and only that) from a `chrome-extension://` origin; see `src/api.js` `extensionOrigin` in gator-run-downs. `EXTENSION_ORIGINS` there can pin it to the store id once known.
 

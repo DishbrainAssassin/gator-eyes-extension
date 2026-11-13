@@ -161,7 +161,8 @@ async function ribbon(mode, watch) {
 }
 
 // Ask Quagmire: the same POST /quag the gatoreyes.fun chat box uses (same answers as /ask in Discord).
-// Sends only the question typed into the panel (and the previous one, for follow-ups). Never cached.
+// Sends only the question typed into the panel, the previous one (for follow-ups) and the ticker of the coin on
+// screen, so "when is the next unlock" means that coin. Never cached.
 async function askQuag(q, prev, tk) {
   q = String(q || "").replace(/\s+/g, " ").trim().slice(0, 200);
   if (!q) return { ok: false, error: "empty" };
@@ -169,7 +170,7 @@ async function askQuag(q, prev, tk) {
   const tm = setTimeout(() => ctl.abort(), 10e3);
   try {
     const r = await fetch(BASE + "/quag", { method: "POST", cache: "no-store", headers: { "content-type": "text/plain" },
-      body: JSON.stringify({ q, prev: String(prev || "").slice(0, 200), pg: "extension" }), signal: ctl.signal });
+      body: JSON.stringify({ q, prev: String(prev || "").slice(0, 200), pg: "extension", tk: /^[A-Za-z0-9]{1,12}$/.test(tk || "") ? tk : "" }), signal: ctl.signal });
     if (r.status === 429) return { ok: true, html: "Slow down a little, I'm still crunching. Try again in a minute." };
     if (!r.ok) throw new Error("HTTP " + r.status);
     const j = await r.json();
