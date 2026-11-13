@@ -6,7 +6,7 @@ Free, read-only Gator Eyes panel on **Solada.fun** and **Snek.fun** coin pages. 
 
 Built to be safe to install next to a Cardano wallet. The full source is in this repo, and what's here is exactly what gets zipped for the Chrome Web Store (see `build.sh`).
 
-> **Store version vs. this repo:** the [Chrome Web Store](https://chromewebstore.google.com/detail/gator-eyes-for-cardano/mbngcmleckdlklnpgiehmbopggapnamp) currently has **v1.1.0** ([source at that version](https://github.com/DishbrainAssassin/gator-eyes-extension/tree/3a37ee6)). This repo is ahead (v1.5.2: Gator Eyes extras, Ask Quagmire, trade ribbon, watchlist) and those features reach the store with the next update. Both versions ask for the same permissions (`storage`, `alarms`, optional `notifications`) and the same sites, so everything in this section applies to both.
+> **Store version:** the [Chrome Web Store](https://chromewebstore.google.com/detail/gator-eyes-for-cardano/mbngcmleckdlklnpgiehmbopggapnamp) has **v1.5.2** (published November 13, 2026), the same version as this repo. It asks for `storage`, `alarms`, optional `notifications`, and access to only the Gator Eyes server and gatorrundowns.fun.
 
 **Never touches your wallet**
 - No wallet code at all. It never calls `window.cardano`, never asks to connect, and never asks you to sign anything.
