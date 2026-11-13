@@ -2,6 +2,34 @@
 
 Free, read-only Gator Eyes panel on **Solada.fun** and **Snek.fun** coin pages. Manifest V3, no build step, no dependencies.
 
+## Security
+
+Built to be safe to install next to a Cardano wallet. The full source is in this repo, and what's here is exactly what gets zipped for the Chrome Web Store (see `build.sh`).
+
+**Never touches your wallet**
+- No wallet code at all. It never calls `window.cardano`, never asks to connect, and never asks you to sign anything.
+- It can't move funds, approve transactions or see your balances.
+
+**Minimal permissions**
+- `storage` (panel settings, watchlist, short-lived data cache) and `alarms` (checks for open Run Downs races). `notifications` is optional and off until you tick "Alert me when a race opens."
+- Network access to only two places: the Gator Eyes server (`gator-eyes.nlunn6731.workers.dev`) and `gatorrundowns.fun`.
+- No access to tabs, history, cookies, downloads, clipboard or "all sites."
+
+**What it does on Solada.fun and Snek.fun**
+- Reads the page address to tell which coin is open, then adds its own panel and trade ribbon in a sealed-off section of the page (shadow DOM).
+- It does not read the page, the trade box, buttons or anything you type, and it does not change Solada's or Snek's own content.
+
+**What it sends**
+- Market panel: nothing about you. Only downloads of public Gator Eyes data.
+- Ask Quagmire: only the question you type and the ticker of the coin on screen.
+- Run Downs tab: only the Lunge / No Lunge picks you click, to gatorrundowns.fun. Sign-in happens on the site; the extension never reads or stores it.
+
+**Updates**
+- No remote code. Everything that runs ships inside the extension.
+- If a future version ever asks for more access, Chrome turns the extension off until you approve the new permissions.
+
+Spotted something off? Open an issue here or ask in the Gator Eyes Discord.
+
 What it does
 - On `solada.fun/coin/<id>` and `snek.fun/token/<asset>` it shows a small panel (bottom-right): 24h volume, net flow, trades, wallets, price change, buys-vs-sells bar, last-hour volume, and any Gator Eyes alerts for that coin in the last 24h (size, pace, price 1h / 24h later from `/followup`), with links to the coin card, holders and tokens pages on gatoreyes.fun.
 - **Gator Eyes extras** (v1.3.0), things Solada's page doesn't show: launch speed (time to graduate, or % to graduation, and age), creator watch (creator wallet % from `/holders`, locked %, creator sells from `/coin-trades`), next unlock (`/unlocks`, with on-chain verification), liquidity (`/liquidity`: pool ADA, depth vs MC, LP owners; hidden if the endpoint is missing), and a Run Downs banner with a Pick link when the coin has an open race (`gatorrundowns.fun/api/now`).
