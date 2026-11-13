@@ -39,11 +39,13 @@ Gator Run Downs tab:
 • The icon badge shows how many races are open; turn on optional alerts to hear about new ones
 • Sign in once at gatorrundowns.fun; the tab uses that sign-in. Same account, same fair-play rules as the site
 
-Private:
-• No trading
-• Never reads page contents, what you type on the page, cookies or wallets. On coin pages it only checks which coin page you're on
-• Ask Quagmire sends only the question you type and the ticker of the coin on screen, to Gator Eyes, to get an answer
-• The market panel sends nothing about you. The Run Downs tab sends only the picks you make, to gatorrundowns.fun
+Security and privacy:
+• Never touches your wallet: no connecting, no signing, can't move funds or see balances
+• Permissions: storage and alarms only (notifications optional, off by default)
+• Talks only to Gator Eyes and gatorrundowns.fun. No tabs, history, cookies or other sites
+• On coin pages it only reads which coin is open, never the page or what you type
+• Sends only your Ask Quagmire question (plus the coin's ticker) and your Run Downs picks
+• No trading. No remote code. Open source: github.com/DishbrainAssassin/gator-eyes-extension
 
 Free forever. Gator Eyes will never charge for access.
 
