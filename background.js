@@ -33,10 +33,14 @@ async function cached(path, ttl = TTL) {
 //   Solada: https://www.solada.fun/coin/<id>          -> c.id === id  (or c.slug === id)
 //           https://www.solada.fun/markets?token=<unit> -> c.unit === unit (policy id + hex asset name)
 //   Snek:   https://www.snek.fun/token/<policy+hex>   -> c.slug === asset or c.id === "snek:<policy>.<hex>"
+// The platform token $SOLADA has no unit in /tokens (id "SOLADA"), so map its Markets-page unit here.
+const SOLADA_UNIT = "e7c77b2784e52949b3f95f8f9f2d1668dd47d7ed56491eab588bb730534f4c414441";
+
 function findCoin(coins, page) {
   const key = String(page.key || "").trim();
   if (!key) return null;
-  const lk = key.toLowerCase();
+  let lk = key.toLowerCase();
+  if (lk === SOLADA_UNIT) lk = "solada";
   if (page.src === "snek") {
     return coins.find((c) => c.src === "snek" && (String(c.slug || "").toLowerCase() === lk || String(c.id || "").slice(5).replace(".", "").toLowerCase() === lk)) || null;
   }
