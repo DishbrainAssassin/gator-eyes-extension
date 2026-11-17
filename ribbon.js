@@ -13,6 +13,8 @@
   const pct = (p) => (p == null ? "" : (p > 0 ? "▲" : p < 0 ? "▼" : "") + Math.abs(p).toFixed(1) + "%");
   const ago = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1e3); return s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + "m" : s < 86400 ? Math.round(s / 3600) + "h" : Math.round(s / 86400) + "d"; };
   const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1e3)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
+  // Rough dollar value beside an ADA amount, from the feed's latest ADA to USDCx rate. Unsigned.
+  const usdx = (v) => { const r = data && Number(data.adaUsd); if (!r || !v) return ""; const u = Math.abs(v) * r; return "~" + (u >= 1e3 ? ada(u) : n(u, u < 10 ? 2 : 0)) + " USDCx"; };
   const price = (p) => (p == null ? "" : p >= 1 ? p.toFixed(3) : Number(p).toPrecision(3));
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const coinUrl = (it) => (it.src === "snek" ? "https://www.snek.fun/token/" + encodeURIComponent(String(it.id).slice(5).replace(".", "")) : "https://www.solada.fun/coin/" + encodeURIComponent(it.id));
@@ -79,7 +81,7 @@
 
   function item(it) {
     if (it.t === "trade") {
-      return `<a class="it" href="${esc(coinUrl(it))}" title="$${esc(it.tk)} ${esc(it.side)} ${n(it.ada, 1)} ADA, ${ago(it.at)} ago">${img(it)}<b>$${esc(it.tk)}</b><span class="tag ${it.side === "sell" ? "sell" : "buy"}">${it.side === "sell" ? "SELL" : "BUY"}</span><span>${ada(it.ada)} ADA</span><span class="mu" data-ago="${it.at}">${ago(it.at)}</span></a>`;
+      return `<a class="it" href="${esc(coinUrl(it))}" title="$${esc(it.tk)} ${esc(it.side)} ${n(it.ada, 1)} ADA${usdx(it.ada) ? " (" + usdx(it.ada) + ")" : ""}, ${ago(it.at)} ago">${img(it)}<b>$${esc(it.tk)}</b><span class="tag ${it.side === "sell" ? "sell" : "buy"}">${it.side === "sell" ? "SELL" : "BUY"}</span><span>${ada(it.ada)} ADA</span>${usdx(it.ada) ? `<span class="mu">${usdx(it.ada)}</span>` : ""}<span class="mu" data-ago="${it.at}">${ago(it.at)}</span></a>`;
     }
     if (it.t === "race") {
       const t = it.target || {}, bits = [];
@@ -96,7 +98,7 @@
       if (it.missing) return `<span class="it"><span class="au">★</span><b>$${esc(it.tk)}</b><span class="mu">no trades tracked in 24h</span></span>`;
       const bits = [`<span>${price(it.price)} ADA</span>`];
       if (it.ch != null) bits.push(`<span class="${it.ch > 0 ? "up" : it.ch < 0 ? "dn" : "mu"}">${pct(it.ch)}</span>`);
-      if (it.net) bits.push(`<span class="mu">net</span><span class="${it.net > 0 ? "up" : "dn"}">${it.net > 0 ? "+" : "−"}${ada(Math.abs(it.net))}</span>`);
+      if (it.net) bits.push(`<span class="mu">net</span><span class="${it.net > 0 ? "up" : "dn"}">${it.net > 0 ? "+" : "−"}${ada(Math.abs(it.net))}</span>${usdx(it.net) ? `<span class="mu">${usdx(it.net)}</span>` : ""}`);
       if (it.cs === "graduated") bits.push(`<span class="mu">graduated</span>`); else if (it.prog != null) bits.push(`<span class="mu">${it.prog.toFixed(0)}% to grad</span>`);
       return `<a class="it" href="${esc(coinUrl(it))}">${img(it)}<span class="au">★</span><b>$${esc(it.tk)}</b>${bits.join(" ")}</a>`;
     }

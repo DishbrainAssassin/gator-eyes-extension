@@ -292,6 +292,9 @@
     }
     const w = coin.w || {}, d = w.h24 || { v: 0, n: 0, b: 0, s: 0, net: 0, wal: 0, ch: null }, h = w.h1;
     const rate = Number(res.adaUsd) || 0, sol = coin.sv != null && Number.isFinite(Number(coin.sv));
+    // Rough dollar value beside an ADA amount, e.g. " (~12 USDCx)". Unsigned: the ADA figure carries the sign.
+    const ux1 = (u) => (u >= 1e4 ? ada(u) : n(u, u < 10 ? 2 : 0));
+    const ux = (v) => (rate && v ? ` (~${ux1(Math.abs(v) * rate)} USDCx)` : "");
     const buyShare = d.v > 0 ? Math.round((d.b / d.v) * 100) : 50;
     const netCls = d.net > 0 ? "up" : d.net < 0 ? "dn" : "mu";
     const chCls = d.ch > 0 ? "up" : d.ch < 0 ? "dn" : "mu";
@@ -300,7 +303,7 @@
     const ch = (v) => (v == null ? "" : `<span class="${v > 0 ? "up" : v < 0 ? "dn" : "mu"}">${pct(v)}</span>`);
     const alerts = (res.alerts || []).map((a) => {
       const bits = [];
-      if (a.ada) bits.push(ada(a.ada) + " ADA" + (a.side && a.kind !== "spike" ? " " + a.side : ""));
+      if (a.ada) bits.push(ada(a.ada) + " ADA" + ux(a.ada) + (a.side && a.kind !== "spike" ? " " + a.side : ""));
       if (a.kind === "spike" && a.pace) bits.push(a.pace + "x normal pace");
       if (a.kind === "launch" && a.wallets) bits.push(a.wallets + " wallets");
       if (a.kind === "big" && a.creator) bits.push("creator wallet");
@@ -321,7 +324,7 @@
       const c = x.creator;
       const held = c.pct != null ? `Holds ${sp(c.pct)}` : c.under != null ? `Holds under ${sp(c.under)}` : "";
       const lk = c.locked > 0 ? `${sp(c.locked)} locked` : "";
-      const sold = c.sold > 0 ? `<span class="dn">sold ${ada(c.sold)} ADA</span>${c.last ? " " + ago(c.last) + " ago" : ""}` : (c.full ? `<span class="ok">no sells in 24h</span>` : "no sells in recent trades");
+      const sold = c.sold > 0 ? `<span class="dn">sold ${ada(c.sold)} ADA${ux(c.sold)}</span>${c.last ? " " + ago(c.last) + " ago" : ""}` : (c.full ? `<span class="ok">no sells in 24h</span>` : "no sells in recent trades");
       rows.push(["Creator", [esc(held), esc(lk), sold].filter(Boolean).join(" · ")]);
     }
     // Next unlock
@@ -336,7 +339,7 @@
       if (sh.creator) parts.push(`creator ${Math.round(sh.creator)}%`);
       if (sh.burned) parts.push(`burned ${Math.round(sh.burned)}%`);
       if (sh.other) parts.push(`others ${Math.round(sh.other)}%`);
-      rows.push(["Liquidity", `${ada(x.liq.ada)} ADA in pool${x.liq.depth != null ? ` (${x.liq.depth.toFixed(1)}% of MC)` : ""}${parts.length ? " · LP: " + esc(parts.join(", ")) : ""}${x.liq.ch24 ? " · 24h " + ch(x.liq.ch24) : ""}`]);
+      rows.push(["Liquidity", `${ada(x.liq.ada)} ADA${ux(x.liq.ada)} in pool${x.liq.depth != null ? ` (${x.liq.depth.toFixed(1)}% of MC)` : ""}${parts.length ? " · LP: " + esc(parts.join(", ")) : ""}${x.liq.ch24 ? " · 24h " + ch(x.liq.ch24) : ""}`]);
     }
     const extras = rows.length ? `<div class="ex">${rows.map(([k, v]) => `<div class="row"><span class="k">${esc(k)}</span><span>${v}</span></div>`).join("")}</div>` : "";
     const race = x.race && on("race") ? `<div class="race"><span><b>Racing in Gator Run Downs</b> · picks close ${until(x.race.closesAt)}${x.race.buyers != null ? ` · ${n(x.race.buyers)} buyers` : ""}</span><span class="sp"></span><a href="${esc(x.race.play)}" target="_blank" rel="noopener">Pick</a></div>` : "";
@@ -344,13 +347,13 @@
       <div class="bd">${race}
         ${on("stats") ? `<div class="g">
           <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div>${rate ? `<div class="sub">≈ ${usd(d.v * rate)} USDCx</div>` : ""}</div>
-          <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div></div>
+          <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div>${rate && d.net ? `<div class="sub">≈ ${ux1(Math.abs(d.net) * rate)} USDCx</div>` : ""}</div>
           <div><div class="k">Trades · wallets</div><div class="v">${n(d.n)} · ${n(d.wal)}</div></div>
           <div><div class="k">Price 24h</div><div class="v ${chCls}">${pct(d.ch)}</div></div>
           ${sol ? `<div style="grid-column:1/-1"><div class="k">Solana pool 24h</div><div class="v">${usd(coin.sv)} USDC</div><div class="sub">All traders on its Solana pool</div></div>` : ""}
         </div>` : ""}
         ${on("flow") ? `<div class="bar" title="buys vs sells, 24h"><i style="width:${buyShare}%"></i></div>
-        <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${h ? ` · last hour ${ada(h.v)} ADA (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA` : ""}</div>` : ""}
+        <div class="sub">Buys ${ada(d.b)} · Sells ${ada(d.s)} ADA${rate ? ` (~${ux1(d.b * rate)} / ~${ux1(d.s * rate)} USDCx)` : ""}${h ? ` · last hour ${ada(h.v)} ADA${ux(h.v)} (${pct(h.ch)})` : ""}${coin.mc ? ` · MC ${ada(coin.mc)} ADA${ux(coin.mc)}` : ""}</div>` : ""}
         ${extras}
         ${alerts && on("alerts") ? `<div class="al"><div class="k">Gator Eyes alerts, last 24h</div>${alerts}</div>` : ""}
       </div>
