@@ -20,9 +20,12 @@ chrome.runtime.sendMessage({ type: "top" }, (res) => {
   const el = $("list");
   if (chrome.runtime.lastError || !res || !res.ok) { el.innerHTML = '<div class="note">Couldn\'t reach the Gator Eyes feed right now.</div>'; return; }
   const site = res.site || "https://gatoreyes.fun";
+  // Rough dollar value under each ADA figure, from the feed's latest ADA to USDCx rate.
+  const rate = Number(res.adaUsd) || 0;
+  const ux = (v) => { if (!rate || !v) return ""; const u = Math.abs(v) * rate; return `<small class="usd">~${u >= 1e4 ? ada(u) : Math.round(u).toLocaleString("en-US")} USDCx</small>`; };
   el.innerHTML = "<table>" + res.coins.map((c) => {
     const d = c.w.h24, cls = d.net > 0 ? "up" : d.net < 0 ? "dn" : "mu";
-    return `<tr><td><a href="${site}/coincard.html?coin=${encodeURIComponent(c.id)}" target="_blank" rel="noopener">$${esc(c.tk)}</a><span class="src">${c.src === "snek" ? "Snek" : "Solada"}</span></td><td class="n">${ada(d.v)} ADA</td><td class="n ${cls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</td></tr>`;
+    return `<tr><td><a href="${site}/coincard.html?coin=${encodeURIComponent(c.id)}" target="_blank" rel="noopener">$${esc(c.tk)}</a><span class="src">${c.src === "snek" ? "Snek" : "Solada"}</span></td><td class="n">${ada(d.v)} ADA${ux(d.v)}</td><td class="n ${cls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}${ux(d.net)}</td></tr>`;
   }).join("") + "</table>";
   $("upd").textContent = res.updatedAt ? "updated " + ago(Date.parse(res.updatedAt)) + " ago" : "";
 });
