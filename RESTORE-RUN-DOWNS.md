@@ -13,7 +13,7 @@ What was removed in v1.5.4
 Where it is kept
 - Git tag `run-downs-v1.5.3`: the last full build with Run Downs (same code as store v1.5.3).
 - `parked/run-downs/rundowns.js` and `parked/run-downs/shot-4-run-downs.png` (not zipped by `build.sh`).
-- The removal is one commit on the `remove-run-downs-1.5.4` branch, so it can be undone with `git revert`.
+- The removal is one commit on the `remove-run-downs-1.5.4` branch, so it can be undone with `git revert 997af30`.
 
 To restore
 1. Revert the removal commit (find it with `git log --oneline -- parked/run-downs`), or check out the files from the tag: `git checkout run-downs-v1.5.3 -- background.js content.js ribbon.js popup.html popup.js rundowns.js manifest.json build.sh store/LISTING.md store/shot-4-run-downs.png`.
