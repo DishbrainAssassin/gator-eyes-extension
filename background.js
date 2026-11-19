@@ -7,7 +7,6 @@
 const BASE = "https://gator-eyes.nlunn6731.workers.dev";
 const TTL = 60e3;       // feed cache, ms (the worker itself refreshes about once a minute)
 const SITE = "https://gatoreyes.fun";
-const RD = "https://gatorrundowns.fun";
 
 const mem = {};         // in-memory cache { key: { at, data } }
 
@@ -56,12 +55,11 @@ async function coinInfo(page, hide = []) {
   let alerts = [], extra = {};
   if (coin) {
     const now = Date.now();
-    const [feed, fu, unl, liq, rd, hold, trades] = await Promise.all([
+    const [feed, fu, unl, liq, hold, trades] = await Promise.all([
       cached("/feed").catch(() => null),
       off.has("alerts") ? null : cached("/followup", 5 * 60e3).catch(() => null),
       coin.src === "solada" && !off.has("unlock") ? cached("/unlocks", 5 * 60e3).catch(() => null) : null,
       off.has("liq") ? null : cached("/liquidity", 5 * 60e3).catch(() => null),          // 404 until the liquidity tracker is live; the row stays hidden
-      off.has("race") ? null : cached(RD + "/api/now", 15e3).catch(() => null),
       coin.src === "solada" && !off.has("creator") ? cached("/holders?coin=" + encodeURIComponent(coin.id), 5 * 60e3).catch(() => null) : null,
       coin.src === "solada" && !off.has("creator") ? cached("/coin-trades?coin=" + encodeURIComponent(coin.id)).catch(() => null) : null,
     ]);
@@ -105,9 +103,6 @@ async function coinInfo(page, hide = []) {
     // Liquidity tracker: pool depth and who holds the LP.
     const lc = liq && (liq.coins || []).find((c) => c.id === coin.id);
     if (lc) extra.liq = { ada: lc.ada, depth: lc.depth, share: lc.share || {}, ch24: lc.ch24 };
-    // Gator Run Downs: is this coin racing right now?
-    const race = rd && (rd.open || []).find((x) => x.coinId === coin.id && !x.called && Number(x.closesAt) > now);
-    if (race) extra.race = { closesAt: Number(race.closesAt), buyers: race.buyers, net: race.net, target: rd.target || null, play: rd.play || RD + "/paddock.html" };
   }
   return { ok: true, coin, alerts, extra, updatedAt: tok.updatedAt, adaUsd: tok.adaUsd, site: SITE };
 }
@@ -120,32 +115,12 @@ async function topMovers() {
 }
 
 // ---- Trade ribbon -------------------------------------------------------------------------------------------------
-// The strip along the bottom of Solada / Snek.fun pages. Three sources, picked by the user:
+// The strip along the bottom of Solada / Snek.fun pages. Two sources, picked by the user:
 //   trades: the newest trades on the Gator Eyes tape (/feed, same as the site's live tape)
-//   rd:     Gator Run Downs races open for picks, with your own pick when you're signed in at gatorrundowns.fun
 //   watch:  coins starred in the extension (saved in this browser only; the list never leaves it)
 const tradeItem = (t) => ({ t: "trade", id: t.id, tk: t.tk, src: t.src, side: t.side, ada: t.ada, at: t.at, img: t.img || null });
 
 async function ribbon(mode, watch) {
-  if (mode === "rd") {
-    const [now, pad] = await Promise.all([
-      cached(RD + "/api/now", 15e3).catch(() => null),
-      // Signed-in view (adds "mine" and Quagmire's call). Same request the popup's Run Downs tab makes.
-      fetch(RD + "/api/paddock", { credentials: "include", cache: "no-store" }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-    ]);
-    if (!now && !pad) throw new Error("Gator Run Downs isn't answering");
-    const t = Date.now(), target = (now && now.target) || { buyers: 15, netAda: 1000 };
-    const byId = Object.fromEntries(((pad && pad.coins) || []).map((c) => [c.coinId, c]));
-    const open = ((now && now.open) || []).filter((x) => !x.called && Number(x.closesAt) > t);
-    for (const c of (pad && pad.coins) || []) if (!open.some((x) => x.coinId === c.coinId) && Number(c.closesAt) > t && !(c.facts && (c.facts.calledAt || c.facts.devSellAt))) open.push({ coinId: c.coinId, ticker: c.ticker, closesAt: c.closesAt });
-    const items = open.map((x) => {
-      const p = byId[x.coinId] || {}, f = p.facts || {};
-      return { t: "race", id: x.coinId, tk: x.ticker || p.ticker || x.name || "coin", img: p.img || null, closesAt: Number(x.closesAt),
-        buyers: f.buyers != null ? f.buyers : x.buyers, net: f.net != null ? f.net : x.net, target, quag: p.quagmire == null ? null : !!p.quagmire, mine: p.mine == null ? null : p.mine };
-    });
-    if (now && now.last) items.push({ t: "last", tk: now.last.ticker, lunge: !!now.last.lunge, at: now.last.settledAt });
-    return { ok: true, mode, items, play: (now && now.play) || RD + "/paddock.html", results: (now && now.results) || RD + "/track.html" };
-  }
   if (mode === "watch") {
     const ids = (Array.isArray(watch) ? watch : []).map((w) => (typeof w === "string" ? w : w && w.id)).filter(Boolean);
     if (!ids.length) return { ok: true, mode, items: [] };
@@ -190,63 +165,21 @@ async function askQuag(q, prev, tk) {
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}, msg.hide) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "rdcheck" ? checkRaces().then(() => ({ ok: true })) : msg && msg.type === "ribbon" ? ribbon(msg.mode, msg.watch) : Promise.resolve({ ok: false, error: "unknown message" });
+  const job = msg && msg.type === "coin" ? coinInfo(msg.page || {}, msg.hide) : msg && msg.type === "top" ? topMovers() : msg && msg.type === "ask" ? askQuag(msg.q, msg.prev, msg.tk) : msg && msg.type === "ribbon" ? ribbon(msg.mode, msg.watch) : Promise.resolve({ ok: false, error: "unknown message" });
   job.then(sendResponse, (e) => sendResponse({ ok: false, error: String(e && e.message || e) }));
   return true; // async response
 });
 
-// ---- Gator Run Downs: toolbar badge and optional new-race alerts ------------------------------------------------
-// Reads only the public /api/now list (cached 15 s by the Run Downs worker, no sign-in). The badge shows how many
-// races are open for picks. Alerts are off until the player turns them on in the Run Downs tab.
-const ALARM = "rd-now";
-
-function ensureAlarm() {
-  chrome.alarms.get(ALARM, (a) => { if (!a) chrome.alarms.create(ALARM, { periodInMinutes: 0.5, delayInMinutes: 0.1 }); });
-}
-chrome.runtime.onInstalled.addListener(() => { ensureAlarm(); checkRaces(); });
-chrome.runtime.onStartup.addListener(() => { ensureAlarm(); checkRaces(); });
-ensureAlarm();
-
-async function checkRaces() {
-  let d;
+// ---- Gator Run Downs (paused) -------------------------------------------------------------------------------------
+// v1.5.4 removed the Run Downs tab, race banner, ribbon mode, badge and race alerts while the game is paused.
+// Restoring it: see RESTORE-RUN-DOWNS.md. On update, tidy settings the old build left behind so nothing points at
+// the paused game: a ribbon set to Run Downs falls back to the trade feed, and the old race-alert keys are removed.
+chrome.runtime.onInstalled.addListener(async () => {
   try {
-    const r = await fetch(RD + "/api/now", { cache: "no-store" });
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    d = await r.json();
-  } catch { return; }
-  const now = Date.now();
-  const open = (d.open || []).filter((x) => !x.called && Number(x.closesAt) > now);
-  try {
-    await chrome.action.setBadgeBackgroundColor({ color: "#2f7d3a" });
-    await chrome.action.setBadgeText({ text: open.length ? String(open.length) : "" });
-    await chrome.action.setTitle({ title: open.length ? `Gator Eyes · ${open.length} Run Downs race${open.length === 1 ? "" : "s"} open for picks` : "Gator Eyes" });
+    const st = await chrome.storage.local.get(["ribbon", "popupTab"]);
+    if (st.ribbon === "rd") await chrome.storage.local.set({ ribbon: "trades" });
+    await chrome.storage.local.remove(["rdAlerts", "rdSeen", "popupTab"]);
+    await chrome.action.setBadgeText({ text: "" });
+    await chrome.action.setTitle({ title: "Gator Eyes" });
   } catch {}
-  const st = await chrome.storage.local.get(["rdAlerts", "rdSeen"]);
-  const seen = new Set(st.rdSeen || []);
-  const fresh = open.filter((x) => !seen.has(x.coinId));
-  for (const x of open) seen.add(x.coinId);
-  await chrome.storage.local.set({ rdSeen: [...seen].slice(-200) });
-  if (!st.rdAlerts || !fresh.length || !chrome.notifications) return;
-  for (const x of fresh.slice(0, 3)) {
-    const left = Math.max(0, Math.round((Number(x.closesAt) - now) / 6e4));
-    chrome.notifications.create("rd:" + x.coinId, {
-      type: "basic", iconUrl: "icons/icon128.png", title: `New race: $${x.ticker || x.name || "coin"}`,
-      message: `Picks open at Gator Run Downs · about ${left} min to pick. Click the Gator Eyes icon to pick.`, priority: 1,
-    });
-  }
-}
-chrome.alarms.onAlarm.addListener((a) => { if (a.name === ALARM) checkRaces(); });
-// notifications is an optional permission: wire the click handler now if it is granted, or as soon as it is.
-let clicksWired = false;
-function wireClicks() {
-  if (clicksWired || !chrome.notifications || !chrome.notifications.onClicked) return;
-  clicksWired = true;
-  chrome.notifications.onClicked.addListener((id) => {
-    if (!id.startsWith("rd:")) return;
-    chrome.notifications.clear(id);
-    const tab = () => chrome.tabs.create({ url: RD + "/paddock.html" });
-    if (chrome.action.openPopup) chrome.action.openPopup().catch(tab); else tab();
-  });
-}
-wireClicks();
-if (chrome.permissions && chrome.permissions.onAdded) chrome.permissions.onAdded.addListener(wireClicks);
+});

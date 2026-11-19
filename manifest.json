@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Gator Eyes for Cardano",
-  "version": "1.5.3",
-  "description": "Free Gator Eyes flow panel, trade ribbon and Ask Quagmire on Solada.fun and Snek.fun, plus a Gator Run Downs tab for free picks.",
+  "version": "1.5.4",
+  "description": "Free Gator Eyes flow panel, trade ribbon, watchlist and Ask Quagmire on Solada.fun and Snek.fun coin pages. Read-only, no wallet.",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -10,12 +10,10 @@
     "128": "icons/icon128.png"
   },
   "permissions": [
-    "storage",
-    "alarms"
+    "storage"
   ],
   "host_permissions": [
-    "https://gator-eyes.nlunn6731.workers.dev/*",
-    "https://gatorrundowns.fun/*"
+    "https://gator-eyes.nlunn6731.workers.dev/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -46,7 +44,9 @@
   "homepage_url": "https://www.gatoreyes.fun/",
   "web_accessible_resources": [
     {
-      "resources": ["icons/icon32.png"],
+      "resources": [
+        "icons/icon32.png"
+      ],
       "matches": [
         "https://www.solada.fun/*",
         "https://solada.fun/*",
@@ -54,8 +54,5 @@
         "https://snek.fun/*"
       ]
     }
-  ],
-  "optional_permissions": [
-    "notifications"
   ]
 }
