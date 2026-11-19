@@ -1,18 +1,17 @@
 // Gator Eyes extension: trade ribbon along the bottom of solada.fun and snek.fun pages.
-// Pick what it shows: the Gator Eyes trade feed, Gator Run Downs picks, or your watchlist (coins starred in
-// the extension). It never reads the page or your wallet; the data comes from the Gator Eyes feed and gatorrundowns.fun.
-// Saved settings: "ribbon" ("trades" | "rd" | "watch" | "off") and "watch" ([{ id, tk }]) in chrome.storage.local.
+// Pick what it shows: the Gator Eyes trade feed or your watchlist (coins starred in the extension).
+// It never reads the page or your wallet; the data comes from the Gator Eyes feed.
+// Saved settings: "ribbon" ("trades" | "watch" | "off"; an old "rd" falls back to "trades") and "watch" ([{ id, tk }]) in chrome.storage.local.
 (() => {
   const HOST_ID = "gator-eyes-ribbon-host";
-  const MODES = [["trades", "Trade feed"], ["rd", "Run Downs picks"], ["watch", "Watchlist"]];
-  const EVERY = { trades: 20e3, rd: 10e3, watch: 30e3 };
+  const MODES = [["trades", "Trade feed"], ["watch", "Watchlist"]];
+  const EVERY = { trades: 20e3, watch: 30e3 };
   let mode = "trades", watch = [], data = null, pending = null, timer = null, host = null;
 
   const n = (v, d = 0) => Number(v || 0).toLocaleString("en-US", { maximumFractionDigits: d });
   const ada = (v) => (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + "M" : Math.abs(v) >= 1e3 ? (v / 1e3).toFixed(Math.abs(v) >= 1e4 ? 1 : 2) + "k" : n(v));
   const pct = (p) => (p == null ? "" : (p > 0 ? "▲" : p < 0 ? "▼" : "") + Math.abs(p).toFixed(1) + "%");
   const ago = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1e3); return s < 60 ? Math.round(s) + "s" : s < 3600 ? Math.round(s / 60) + "m" : s < 86400 ? Math.round(s / 3600) + "h" : Math.round(s / 86400) + "d"; };
-  const clock = (ms) => { const s = Math.max(0, Math.ceil(ms / 1e3)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); };
   // Rough dollar value beside an ADA amount, from the feed's latest ADA to USDCx rate. Unsigned.
   const usdx = (v) => { const r = data && Number(data.adaUsd); if (!r || !v) return ""; const u = Math.abs(v) * r; return "~" + (u >= 1e3 ? ada(u) : n(u, u < 10 ? 2 : 0)) + " USDCx"; };
   const price = (p) => (p == null ? "" : p >= 1 ? p.toFixed(3) : Number(p).toPrecision(3));
@@ -39,7 +38,7 @@
     .it b { font-weight: 700; }
     .up { color: #7ed48a; } .dn { color: #ee7b6d; } .mu { color: #9a9f93; } .au { color: #c9a227; }
     .tag { font-size: 10px; font-weight: 700; letter-spacing: .05em; padding: 1px 5px; border-radius: 4px; line-height: 14px; }
-    .tag.buy { background: #1f3d24; color: #9be08f; } .tag.sell { background: #45201b; color: #f3a093; } .tag.race { background: #c9a227; color: #0d0f0c; }
+    .tag.buy { background: #1f3d24; color: #9be08f; } .tag.sell { background: #45201b; color: #f3a093; }
     .msg { padding: 0 14px; color: #9a9f93; }
     .msg a { color: #c9a227; text-decoration: none; font-weight: 600; }
     .x { flex: none; width: 30px; border: 0; border-left: 1px solid #2a2e26; background: #141712; color: #9a9f93; font: 16px/1 inherit; cursor: pointer; }
@@ -83,17 +82,6 @@
     if (it.t === "trade") {
       return `<a class="it" href="${esc(coinUrl(it))}" title="$${esc(it.tk)} ${esc(it.side)} ${n(it.ada, 1)} ADA${usdx(it.ada) ? " (" + usdx(it.ada) + ")" : ""}, ${ago(it.at)} ago">${img(it)}<b>$${esc(it.tk)}</b><span class="tag ${it.side === "sell" ? "sell" : "buy"}">${it.side === "sell" ? "SELL" : "BUY"}</span><span>${ada(it.ada)} ADA</span>${usdx(it.ada) ? `<span class="mu">${usdx(it.ada)}</span>` : ""}<span class="mu" data-ago="${it.at}">${ago(it.at)}</span></a>`;
     }
-    if (it.t === "race") {
-      const t = it.target || {}, bits = [];
-      if (it.buyers != null) bits.push(`<span class="${it.buyers >= t.buyers ? "up" : ""}">${n(it.buyers)}/${n(t.buyers)} buyers</span>`);
-      if (it.net != null) bits.push(`<span class="${it.net >= t.netAda ? "up" : ""}">${ada(Math.round(it.net))}/${ada(t.netAda)} net</span>`);
-      if (it.quag != null) bits.push(`<span class="mu">Quagmire: <b>${it.quag ? "Lunge" : "No Lunge"}</b></span>`);
-      bits.push(it.mine == null ? `<span class="au">Pick now</span>` : `<span>Your pick: <b class="${it.mine ? "up" : "dn"}">${it.mine ? "Lunge" : "No Lunge"}</b></span>`);
-      return `<a class="it" href="${esc(data.play)}" title="Pick at Gator Run Downs">${img(it)}<span class="tag race">RACING</span><b>$${esc(it.tk)}</b><span class="au" data-close="${it.closesAt}">${clock(it.closesAt - Date.now())}</span> ${bits.join(" · ")}</a>`;
-    }
-    if (it.t === "last") {
-      return `<a class="it" href="${esc(data.results)}" title="Gator Run Downs results"><span class="mu">Last race</span><b>$${esc(it.tk)}</b><span class="${it.lunge ? "up" : "dn"}">${it.lunge ? "Lunged" : "No Lunge"}</span>${it.at ? `<span class="mu">${ago(it.at)} ago</span>` : ""}</a>`;
-    }
     if (it.t === "coin") {
       if (it.missing) return `<span class="it"><span class="au">★</span><b>$${esc(it.tk)}</b><span class="mu">no trades tracked in 24h</span></span>`;
       const bits = [`<span>${price(it.price)} ADA</span>`];
@@ -106,7 +94,6 @@
   }
 
   function emptyMsg() {
-    if (mode === "rd") return `No races open right now. Picks open on their own when a new Solada coin launches. <a href="https://gatorrundowns.fun/paddock.html" target="_blank" rel="noopener">Paddock</a>`;
     if (mode === "watch") return `Your watchlist is empty. Tap ☆ in the Gator Eyes coin panel to star a coin, or import your gatoreyes.fun list from the toolbar button.`;
     return `No trades on the Gator Eyes tape yet.`;
   }
@@ -115,10 +102,8 @@
     data = d;
     const h = ensure(), run = h.shadowRoot.querySelector(".run"), vp = h.shadowRoot.querySelector(".vp");
     const items = (d && d.items) || [];
-    const races = items.filter((i) => i.t === "race").length;
     let html = items.map(item).join("");
-    if (mode === "rd" && !races) html = `<span class="msg">${emptyMsg()}</span>` + html;
-    if (!items.length && mode !== "rd") html = `<span class="msg">${emptyMsg()}</span>`;
+    if (!items.length) html = `<span class="msg">${emptyMsg()}</span>`;
     run.classList.remove("go");
     run.innerHTML = html;
     // Scroll only when the content is wider than the strip. Duplicate it so the loop is seamless.
@@ -148,18 +133,17 @@
     clearInterval(timer); timer = null; pending = null;
     if (mode === "off") return remove();
     ensure(); data = null;
-    paint({ mode, items: [], play: "https://gatorrundowns.fun/paddock.html", results: "https://gatorrundowns.fun/track.html" });
+    paint({ mode, items: [] });
     h1().querySelector(".run").innerHTML = `<span class="msg">Loading…</span>`;
     load();
     timer = setInterval(load, EVERY[mode]);
   }
   const h1 = () => ensure().shadowRoot;
 
-  // Countdowns and "x ago" tick every second without a re-fetch.
+  // "x ago" ticks every second without a re-fetch.
   setInterval(() => {
     if (!host || mode === "off") return;
     const now = Date.now();
-    host.shadowRoot.querySelectorAll("[data-close]").forEach((el) => { const left = Number(el.dataset.close) - now; el.textContent = left > 0 ? clock(left) : "closed"; });
     host.shadowRoot.querySelectorAll("[data-ago]").forEach((el) => { el.textContent = ago(Number(el.dataset.ago)); });
   }, 1000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden && mode !== "off") load(); });

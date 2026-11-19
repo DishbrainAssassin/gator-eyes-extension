@@ -14,7 +14,6 @@
   const SECTIONS = [
     ["stats", "Volume, net flow, trades, price"],
     ["flow", "Buys vs sells and last hour"],
-    ["race", "Run Downs race banner"],
     ["launch", "Launch speed and age"],
     ["creator", "Creator watch"],
     ["unlock", "Next unlock"],
@@ -101,11 +100,6 @@
     .ex .row { display: grid; grid-template-columns: 74px 1fr; gap: 8px; font-size: 12px; }
     .ex .row .k { padding-top: 1px; font-size: 10.5px; }
     .ex .ok { color: #7ed48a; }
-    .race { display: flex; align-items: center; gap: 8px; margin: -10px -12px 10px; padding: 8px 12px; background: #1d2a16; border-bottom: 1px solid #2f4a22; font-size: 12px; }
-    .race b { color: #9be08f; }
-    .race .sp { flex: 1; }
-    .race a { background: #c9a227; color: #0d0f0c; border-radius: 6px; padding: 4px 9px; }
-    .race a:hover { text-decoration: none; filter: brightness(1.08); }
     .ge.rib { bottom: 46px; max-height: calc(100vh - 62px); }
     .hd .star { background: none; border: 0; padding: 0 2px; font: 17px/1 inherit; color: #9a9f93; cursor: pointer; }
     .hd .star:hover { color: #c9a227; } .hd .star.on { color: #c9a227; }
@@ -342,9 +336,8 @@
       rows.push(["Liquidity", `${ada(x.liq.ada)} ADA${ux(x.liq.ada)} in pool${x.liq.depth != null ? ` (${x.liq.depth.toFixed(1)}% of MC)` : ""}${parts.length ? " · LP: " + esc(parts.join(", ")) : ""}${x.liq.ch24 ? " · 24h " + ch(x.liq.ch24) : ""}`]);
     }
     const extras = rows.length ? `<div class="ex">${rows.map(([k, v]) => `<div class="row"><span class="k">${esc(k)}</span><span>${v}</span></div>`).join("")}</div>` : "";
-    const race = x.race && on("race") ? `<div class="race"><span><b>Racing in Gator Run Downs</b> · picks close ${until(x.race.closesAt)}${x.race.buyers != null ? ` · ${n(x.race.buyers)} buyers` : ""}</span><span class="sp"></span><a href="${esc(x.race.play)}" target="_blank" rel="noopener">Pick</a></div>` : "";
     return header(coin, page) + `
-      <div class="bd">${race}
+      <div class="bd">
         ${on("stats") ? `<div class="g">
           <div><div class="k">24h volume</div><div class="v">${ada(d.v)} ADA</div>${rate ? `<div class="sub">≈ ${usd(d.v * rate)} USDCx</div>` : ""}</div>
           <div><div class="k">Net flow 24h</div><div class="v ${netCls}">${d.net > 0 ? "+" : d.net < 0 ? "−" : ""}${ada(Math.abs(d.net))}</div>${rate && d.net ? `<div class="sub">≈ ${ux1(Math.abs(d.net) * rate)} USDCx</div>` : ""}</div>

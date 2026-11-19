@@ -1,12 +1,14 @@
 # Chrome Web Store listing: Gator Eyes for Cardano
 
+v1.5.4: Run Downs removed while the game is paused. To bring it back, see `RESTORE-RUN-DOWNS.md` and the v1.5.3 version of this file.
+
 Copy each block into the matching field in the Chrome Web Store developer dashboard.
 
 ## Store listing tab
 
 **Name** (from manifest): Gator Eyes for Cardano
 
-**Summary** (from manifest, max 132 chars): Free Gator Eyes flow panel, trade ribbon and Ask Quagmire on Solada.fun and Snek.fun, plus a Gator Run Downs tab for free picks.
+**Summary** (from manifest, max 132 chars): Free Gator Eyes flow panel, trade ribbon, watchlist and Ask Quagmire on Solada.fun and Snek.fun coin pages. Read-only, no wallet.
 
 **Description:**
 
@@ -23,28 +25,21 @@ Gator Eyes is a free, automated tracker for Cardano launchpads. This extension a
 • Creator watch: the creator wallet's holdings, locked supply and any creator sells
 • Next unlock: the next locked-supply release, its date and whether the lock was checked on-chain
 • Liquidity: pool size, depth next to market cap and who holds the LP tokens (graduated coins)
-• A banner when the coin is racing in Gator Run Downs, with a link to make your pick
 • Customize: pick which sections the panel shows
 • Watchlist: star coins with ☆ and follow them in the ribbon
 • One-click links to the coin card, holder snapshot and tokens table on gatoreyes.fun
 • Ask Quagmire right in the panel: holders, burns, unlocks or any question about the coin, answered from live Gator Eyes data
 
-Trade ribbon along the bottom of Solada.fun and Snek.fun pages: pick the live Gator Eyes trade feed, open Gator Run Downs races or your watchlist, or turn it off.
+Trade ribbon along the bottom of Solada.fun and Snek.fun pages: pick the live Gator Eyes trade feed or your watchlist, or turn it off.
 
 Click the toolbar icon to see the 8 most traded coins across both launchpads in the last 24 hours.
 
-Gator Run Downs tab:
-• Every open Gator Run Downs race with its pick countdown, buyers and net ADA against the Fast Lunge target, and Quagmire's call
-• Make your free Lunge / No Lunge pick right from the toolbar. Free to play, no token gate
-• The icon badge shows how many races are open; turn on optional alerts to hear about new ones
-• Sign in once at gatorrundowns.fun; the tab uses that sign-in. Same account, same fair-play rules as the site
-
 Security and privacy:
 • Never touches your wallet: no connecting, no signing, can't move funds or see balances
-• Permissions: storage and alarms only (notifications optional, off by default)
-• Talks only to Gator Eyes and gatorrundowns.fun. No tabs, history, cookies or other sites
+• Permission: storage only
+• Talks only to the Gator Eyes server. No tabs, history, cookies or other sites
 • On coin pages it only reads which coin is open, never the page or what you type
-• Sends only your Ask Quagmire question (plus the coin's ticker) and your Run Downs picks
+• Sends only your Ask Quagmire question (plus the coin's ticker)
 • No trading. No remote code. Open source: github.com/DishbrainAssassin/gator-eyes-extension
 
 Free forever. Gator Eyes will never charge for access.
@@ -55,7 +50,7 @@ Not financial advice. Gator Eyes is independent and not affiliated with Solada.f
 **Category:** Tools
 **Language:** English
 **Store icon:** `icons/icon128.png`
-**Screenshots (1280x800):** `shot-6-solana-ribbon.png` (v1.5.1 panel with Solana volume and trade ribbon), `shot-5-extras.png` (v1.3.0 panel), `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`, `shot-4-run-downs.png`
+**Screenshots (1280x800):** `shot-6-solana-ribbon.png` (v1.5.1 panel with Solana volume and trade ribbon), `shot-5-extras.png` (v1.3.0 panel), `shot-1-mepe.png`, `shot-2-val.png`, `shot-3-popup.png`. Delete the old Run Downs screenshot (`shot-4-run-downs.png`) from the dashboard; it is parked in `parked/run-downs/`.
 **Small promo tile (440x280):** `promo-440x280.png`
 **Official URL / Homepage:** https://www.gatoreyes.fun/
 **Support URL:** the Gator Eyes Discord invite
@@ -65,7 +60,7 @@ Not financial advice. Gator Eyes is independent and not affiliated with Solada.f
 **Single purpose:**
 
 ```
-Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volume, net flow, trades and alerts) on Solada.fun and Snek.fun coin pages and in the toolbar, including the Gator Eyes forecasting game, Gator Run Downs, where players see open races and make free picks.
+Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volume, net flow, trades and alerts) on Solada.fun and Snek.fun coin pages and in the toolbar, with a trade ribbon, a watchlist kept in the browser and Ask Quagmire answers from live Gator Eyes data.
 ```
 
 **Permission justification, storage:**
@@ -74,23 +69,7 @@ Gator Eyes companion for Cardano launchpads: public Gator Eyes market data (volu
 Remembers whether the user collapsed the panel or opened the Ask Quagmire box and which panel sections they chose to show, what the trade ribbon shows, and the coins they starred for their watchlist (kept only in the browser), and keeps a short-lived copy of the public Gator Eyes data (15 seconds to 5 minutes) so it isn't downloaded again on every page.
 ```
 
-**Permission justification, alarms:**
-
-```
-Checks Gator Run Downs' public list of open races about twice a minute so the toolbar badge shows how many races are open for picks, and so optional new-race alerts can fire.
-```
-
-**Permission justification, notifications (optional, requested only when the user turns on alerts):**
-
-```
-Shows a desktop notification when a new Gator Run Downs race opens, only after the user ticks "Alert me when a race opens" in the Run Downs tab. Off by default.
-```
-
-**Permission justification, host permission (gatorrundowns.fun):**
-
-```
-The Run Downs tab reads open races (the coin panel also uses this list to show when the coin on screen is racing), the signed-in player's username, points and picks from gatorrundowns.fun, and sends the Lunge / No Lunge pick the player clicks. These are the same API calls the gatorrundowns.fun website makes. The extension does not read or store the sign-in cookie; the browser attaches it.
-```
+**Removed in v1.5.4:** the `alarms` and optional `notifications` permissions and the `gatorrundowns.fun` host permission. They were only used by the Run Downs tab, badge and race alerts. If the dashboard still shows justification boxes for them, clear them.
 
 **Permission justification, host permission (gator-eyes.nlunn6731.workers.dev):**
 
@@ -106,7 +85,7 @@ Needed to draw the panel on Solada.fun and Snek.fun coin pages. The script only 
 
 **Remote code:** No, I am not using remote code.
 
-**Data usage:** tick **Authentication information** (the browser sends the player's existing Gator Run Downs sign-in with Run Downs requests) and **User activity** (the picks the player clicks are sent to gatorrundowns.fun). Leave every other box unchecked. Tick all three certifications:
+**Data usage:** untick **Authentication information** and **User activity** (both were only for Run Downs sign-in and picks). Leave every data-type box unchecked. Tick all three certifications:
 - I do not sell or transfer user data to third parties, outside of the approved use cases
 - I do not use or transfer user data for purposes that are unrelated to my item's single purpose
 - I do not use or transfer user data to determine creditworthiness or for lending purposes
